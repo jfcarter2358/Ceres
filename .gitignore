@@ -1,0 +1,10 @@
+/dist
+.python-version
+/test/.ceres/data/db1/foo/*
+!/test/.ceres/data/db1/foo/bad.bak
+!/test/.ceres/data/db1/foo/bar.bak
+!/test/.ceres/data/db1/foo/baz.bak
+/test/.ceres/data/db1/foo1/*
+!/test/.ceres/data/db1/foo1/bar.bak
+!/test/.ceres/data/db1/foo1/baz.bak
+/docs/build
