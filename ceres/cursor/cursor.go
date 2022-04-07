@@ -13,6 +13,7 @@ const (
 	ModeRead IOMode = iota
 	ModeWrite
 	ModeDelete
+	ModePatch
 )
 
 const (
@@ -36,28 +37,54 @@ func Initialize(lowerBound, upperBound int, mode IOMode) {
 	UpperBound = upperBound
 }
 
-func Next(line string, datum interface{}) (IOOp, map[string]interface{}, string, error) {
+func Next(line string, datum map[string]interface{}) (IOOp, map[string]interface{}, string, error) {
 	Index += 1
 	if Index >= LowerBound && Index <= UpperBound {
-		if Mode == ModeRead {
+		switch Mode {
+		case ModeRead:
 			var outInterface map[string]interface{}
+			if line == "" {
+				return OpRead, outInterface, "", nil
+			}
 			err := json.Unmarshal([]byte(line), &outInterface)
 			if err != nil {
 				return OpError, nil, "", err
 			}
 			return OpRead, outInterface, "", nil
-		} else if Mode == ModeWrite {
+		case ModeWrite:
 			var outString string
+			var outInterface map[string]interface{}
+			json.Unmarshal([]byte(line), &outInterface)
 			outBytes, err := json.Marshal(datum)
 			if err != nil {
 				return OpError, nil, "", err
 			}
 			outString = string(outBytes) + "\n"
-			return OpWrite, nil, outString, nil
-		} else if Mode == ModeDelete {
+			return OpWrite, outInterface, outString, nil
+		case ModeDelete:
 			var outString string
+			var outInterface map[string]interface{}
 			outString = "\n"
-			return OpDelete, nil, outString, nil
+			json.Unmarshal([]byte(line), &outInterface)
+			return OpDelete, outInterface, outString, nil
+		case ModePatch:
+			var outString string
+			var outInterface map[string]interface{}
+			tmpInterface := make(map[string]interface{})
+			json.Unmarshal([]byte(line), &outInterface)
+			for key, val := range outInterface {
+				if _, ok := datum[key]; !ok {
+					tmpInterface[key] = val
+				} else {
+					tmpInterface[key] = datum[key]
+				}
+			}
+			outBytes, err := json.Marshal(tmpInterface)
+			if err != nil {
+				return OpError, nil, "", err
+			}
+			outString = string(outBytes) + "\n"
+			return OpWrite, outInterface, outString, nil
 		}
 	}
 	if Index == UpperBound+1 {

@@ -7,7 +7,8 @@ import (
 )
 
 func Initialize(level string) {
-	log.SetFormatter(&log.JSONFormatter{})
+	// log.SetFormatter(&log.JSONFormatter{})
+	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 	lvl, err := log.ParseLevel(level)
 	if err != nil {
 		panic(err)

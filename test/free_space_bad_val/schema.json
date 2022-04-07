@@ -1,0 +1,17 @@
+{
+   "action": {
+      "test": {
+         "item": "STRING",
+         "price": "INT"
+      }
+   },
+   "db1": {
+      "foo": {
+         "foo": "ST
+      },
+      "foo1": {
+         "foo": "STRING"
+      }
+   },
+   "filter": {}
+}

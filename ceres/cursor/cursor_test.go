@@ -39,7 +39,7 @@ func TestNextRead(t *testing.T) {
 	expectedOperation = OpRead
 
 	var inString string
-	var inInterface interface{}
+	var inInterface map[string]interface{}
 	inString = "{\"foo\":\"bar\"}"
 
 	Initialize(0, 16, ModeRead)
@@ -75,7 +75,7 @@ func TestNextWrite(t *testing.T) {
 	expectedOperation = OpWrite
 
 	var inString string
-	var inInterface interface{}
+	var inInterface map[string]interface{}
 	inString = ""
 	json.Unmarshal([]byte("{\"foo\":\"bar\"}"), &inInterface)
 
@@ -112,10 +112,48 @@ func TestNextDelete(t *testing.T) {
 	expectedOperation = OpDelete
 
 	var inString string
-	var inInterface interface{}
+	var inInterface map[string]interface{}
 	inString = ""
 
 	Initialize(0, 16, ModeDelete)
+	op, outInterface, outString, err := Next(inString, inInterface)
+
+	if Index != expectedIndex {
+		t.Errorf("Index was incorrect, got: %d, want: %d", Index, expectedIndex)
+	}
+	if op != expectedOperation {
+		t.Errorf("Operation was incorrect, got: %d, want: %d", op, expectedOperation)
+	}
+	if !reflect.DeepEqual(outInterface, expectedInterface) {
+		t.Errorf("Interface was incorrect, got: %v, want: %v", outInterface, expectedInterface)
+	}
+	if outString != expectedString {
+		t.Errorf("String was incorrect, got: %s, want: %s", outString, expectedString)
+	}
+	if err != expectedError {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
+	}
+}
+
+func TestNextWrite2(t *testing.T) {
+	var expectedIndex int
+	var expectedString string
+	var expectedInterface map[string]interface{}
+	var expectedError error
+	var expectedOperation IOOp
+
+	expectedIndex = 0
+	expectedString = "{\"foo\":\"bar\",\"hello\":\"world\"}\n"
+	expectedError = nil
+	expectedOperation = OpWrite
+	json.Unmarshal([]byte("{\"foo\":\"baz\",\"hello\":\"world\"}"), &expectedInterface)
+
+	var inString string
+	var inInterface map[string]interface{}
+	inString = "{\"foo\":\"baz\",\"hello\":\"world\"}"
+	json.Unmarshal([]byte("{\"foo\":\"bar\"}"), &inInterface)
+
+	Initialize(0, 16, ModePatch)
 	op, outInterface, outString, err := Next(inString, inInterface)
 
 	if Index != expectedIndex {
@@ -148,7 +186,7 @@ func TestNextNext(t *testing.T) {
 	expectedOperation = OpNext
 
 	var inString string
-	var inInterface interface{}
+	var inInterface map[string]interface{}
 	inString = ""
 
 	Initialize(0, 16, ModeRead)
@@ -185,7 +223,7 @@ func TestNextJump(t *testing.T) {
 	expectedOperation = OpJump
 
 	var inString string
-	var inInterface interface{}
+	var inInterface map[string]interface{}
 	inString = ""
 
 	Initialize(0, 16, ModeRead)
@@ -221,8 +259,8 @@ func TestNextWriteErr(t *testing.T) {
 	expectedError := &json.UnsupportedValueError{}
 
 	var inString string
-	var inInterface interface{}
-	inInterface = math.Inf(1)
+	var inInterface map[string]interface{}
+	inInterface = map[string]interface{}{"foo": math.Inf(1)}
 
 	Initialize(0, 16, ModeWrite)
 	op, outInterface, outString, err := Next(inString, inInterface)
@@ -258,7 +296,7 @@ func TestNextReadErr(t *testing.T) {
 	expectedOperation = OpError
 
 	var inString string
-	var inInterface interface{}
+	var inInterface map[string]interface{}
 	inString = "{\"foo\":\"ba"
 
 	Initialize(0, 16, ModeRead)

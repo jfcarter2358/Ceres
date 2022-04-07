@@ -3,7 +3,7 @@
 <html>
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-		<title>config: Go Coverage Report</title>
+		<title>aql: Go Coverage Report</title>
 		<style>
 			body {
 				background: black;
@@ -55,15 +55,21 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">ceres/config/config.go (100.0%)</option>
+				<option value="file0">ceres/aql/aql.go (73.4%)</option>
 				
-				<option value="file1">ceres/cursor/cursor.go (100.0%)</option>
+				<option value="file1">ceres/config/config.go (100.0%)</option>
 				
-				<option value="file2">ceres/logging/logging.go (100.0%)</option>
+				<option value="file2">ceres/cursor/cursor.go (95.6%)</option>
 				
-				<option value="file3">ceres/manager/manager.go (100.0%)</option>
+				<option value="file3">ceres/freespace/freespace.go (100.0%)</option>
 				
-				<option value="file4">ceres/utils/utils.go (100.0%)</option>
+				<option value="file4">ceres/index/index.go (92.1%)</option>
+				
+				<option value="file5">ceres/manager/manager.go (72.6%)</option>
+				
+				<option value="file6">ceres/schema/schema.go (57.8%)</option>
+				
+				<option value="file7">ceres/utils/utils.go (86.5%)</option>
 				
 				</select>
 			</div>
@@ -77,12 +83,792 @@
 		</div>
 		<div id="content">
 		
-		<pre class="file" id="file0" style="display: none">// config.go
+		<pre class="file" id="file0" style="display: none">// Package aql handles Antler Query Language parsing
+package aql
+
+import (
+        "ceres/config"
+        "ceres/utils"
+        "encoding/json"
+        "errors"
+        "io/ioutil"
+        "os"
+        "regexp"
+        "strconv"
+        "strings"
+)
+
+type Node struct {
+        Value string
+        Left  *Node
+        Right *Node
+}
+
+type Token struct {
+        Type  string
+        Value string
+}
+type DepthStruct struct {
+        Paren   int
+        Brace   int
+        Bracket int
+}
+
+type FlagStruct struct {
+        Quote   bool
+        Bracket bool
+        Brace   bool
+        Paren   bool
+}
+
+type Action struct {
+        Type       string
+        Identifier string
+        IDs        []string
+        Fields     []string
+        Limit      int
+        Filter     Node
+        Order      string
+        OrderDir   string
+        Data       []map[string]interface{}
+        User       string
+}
+
+// Determine the type of a token based on its value
+func determineType(value string, token *Token) <span class="cov8" title="1">{
+        ops := []string{"&gt;", "&gt;=", "=", "&lt;=", "&lt;", "!="}
+        logic := []string{"AND", "OR", "XOR", "NOT"}
+        switch value </span>{
+        // First check the types that only have one possible value
+        case ",":<span class="cov8" title="1">
+                token.Type = "COMMA"</span>
+        case "(":<span class="cov8" title="1">
+                token.Type = "OPEN_PAREN"</span>
+        case ")":<span class="cov8" title="1">
+                token.Type = "CLOSE_PAREN"</span>
+        case "[":<span class="cov8" title="1">
+                token.Type = "OPEN_BRACKET"</span>
+        case "]":<span class="cov8" title="1">
+                token.Type = "CLOSE_BRACKET"</span>
+        case "{":<span class="cov8" title="1">
+                token.Type = "OPEN_BRACE"</span>
+        case "}":<span class="cov8" title="1">
+                token.Type = "CLOSE_BRACE"</span>
+        case "|":<span class="cov8" title="1">
+                token.Type = "PIPE"</span>
+        case "*":<span class="cov8" title="1">
+                token.Type = "WILDCARD"</span>
+        case "GET":<span class="cov8" title="1">
+                token.Type = "GET"</span>
+        case "POST":<span class="cov8" title="1">
+                token.Type = "POST"</span>
+        case "PUT":<span class="cov8" title="1">
+                token.Type = "PUT"</span>
+        case "PATCH":<span class="cov8" title="1">
+                token.Type = "PATCH"</span>
+        case "DELETE":<span class="cov8" title="1">
+                token.Type = "DELETE"</span>
+        case "LIMIT":<span class="cov8" title="1">
+                token.Type = "LIMIT"</span>
+        case "FILTER":<span class="cov8" title="1">
+                token.Type = "FILTER"</span>
+        case "ORDERASC":<span class="cov8" title="1">
+                token.Type = "ORDERASC"</span>
+        case "ORDERDSC":<span class="cov8" title="1">
+                token.Type = "ORDERDSC"</span>
+        case "-":<span class="cov8" title="1">
+                token.Type = "DASH"</span>
+        case "DBADD":<span class="cov8" title="1">
+                token.Type = "DBADD"</span>
+        case "COLADD":<span class="cov8" title="1">
+                token.Type = "COLADD"</span>
+        case "COLMOD":<span class="cov0" title="0">
+                token.Type = "COLMOD"</span>
+        case "DBDEL":<span class="cov8" title="1">
+                token.Type = "DBDEL"</span>
+        case "COLDEL":<span class="cov8" title="1">
+                token.Type = "COLDEL"</span>
+        case "PERMITADD":<span class="cov0" title="0">
+                token.Type = "PERMITADD"</span>
+        case "PERMITDEL":<span class="cov0" title="0">
+                token.Type = "PERMITDEL"</span>
+        case "PERMITMOD":<span class="cov0" title="0">
+                token.Type = "PERMITMOD"</span>
+        case "PERMITGET":<span class="cov0" title="0">
+                token.Type = "PERMITGET"</span>
+        case "USERADD":<span class="cov0" title="0">
+                token.Type = "USERADD"</span>
+        case "USERDEL":<span class="cov0" title="0">
+                token.Type = "USERDEL"</span>
+        case "USERMOD":<span class="cov0" title="0">
+                token.Type = "USERMOD"</span>
+        case "USERGET":<span class="cov0" title="0">
+                token.Type = "USERGET"</span>
+        case "COUNT":<span class="cov0" title="0">
+                token.Type = "COUNT"</span>
+        default:<span class="cov8" title="1">
+                // Check the more open-ended types
+                if utils.Contains(ops, value) </span><span class="cov8" title="1">{
+                        token.Type = "OP"
+                }</span> else<span class="cov8" title="1"> if utils.Contains(logic, value) </span><span class="cov8" title="1">{
+                        token.Type = "LOGIC"
+                }</span> else<span class="cov8" title="1"> if value[0:1] == "\"" </span><span class="cov8" title="1">{
+                        token.Type = "STRING"
+                        token.Value = value[1 : len(value)-1]
+                }</span> else<span class="cov8" title="1"> if value[0:1] == "[" </span><span class="cov8" title="1">{
+                        token.Type = "LIST"
+                }</span> else<span class="cov8" title="1"> if value[0:1] == "{" </span><span class="cov8" title="1">{
+                        token.Type = "DICT"
+                }</span> else<span class="cov8" title="1"> if value[0:1] == "(" </span><span class="cov0" title="0">{
+                        token.Type = "NESTED"
+                }</span> else<span class="cov8" title="1"> if res, _ := regexp.MatchString("^-?\\d+$", value); res </span><span class="cov8" title="1">{
+                        token.Type = "INT"
+                }</span> else<span class="cov8" title="1"> if res, _ := regexp.MatchString("^-?\\d+\\.\\d+$", value); res </span><span class="cov8" title="1">{
+                        token.Type = "FLOAT"
+                }</span> else<span class="cov8" title="1"> if res, _ := regexp.MatchString("^(?:true|false)$", value); res </span><span class="cov8" title="1">{
+                        token.Type = "BOOLEAN"
+                }</span> else<span class="cov8" title="1"> if res, _ := regexp.MatchString("^[a-zA-Z0-9-_]+\\.[a-zA-Z0-9-_]+$", value); res </span><span class="cov8" title="1">{
+                        token.Type = "IDENTIFIER"
+                }</span> else<span class="cov8" title="1"> {
+                        token.Type = "FIELD"
+                }</span>
+        }
+}
+
+// Get the patterns which define the AQL language
+func getPatterns() (map[string]string, error) <span class="cov8" title="1">{
+        path := config.Config.CeresDir + "/config/aql.json"
+
+        // Open our jsonFile
+        jsonFile, err := os.Open(path)
+
+        // If we os.Open returns an error then handle it
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+
+        // Read and unmarshal the JSON
+        <span class="cov8" title="1">byteValue, _ := ioutil.ReadAll(jsonFile)
+
+        var f interface{}
+
+        // Read the JSON
+        err = json.Unmarshal(byteValue, &amp;f)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">output := make(map[string]string)
+
+        for key, val := range f.(map[string]interface{}) </span><span class="cov8" title="1">{
+                output[key] = val.(string)
+        }</span>
+
+        <span class="cov8" title="1">return output, nil</span>
+}
+
+// Check a provided action against the AQL grammar to ensure that it is syntactically correct
+func checkPattern(actionString, actionSyntax, pattern string) error <span class="cov8" title="1">{
+        if res, _ := regexp.MatchString(pattern, actionString); !res </span><span class="cov8" title="1">{
+                err := errors.New("Invalid syntax: `" + actionSyntax + "`. Got: " + actionString + ", want: " + pattern)
+                return err
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+// func printFilter(node Node, indent string) {
+//         if indent == "" {
+//                 fmt.Print("HEAD  : ")
+//         }
+//         fmt.Printf("%v%v\n", indent, node.Value)
+//         if node.Left != nil {
+//                 fmt.Print("LEFT  : ")
+//                 printFilter(*node.Left, indent+"  ")
+//         }
+//         if node.Right != nil {
+//                 fmt.Print("RIGHT : ")
+//                 printFilter(*node.Right, indent+"  ")
+//         }
+// }
+
+// Given a list of filter tokens, produce a tree that represents the logical and conditional operations
+func handleConditionals(tokens []Token) Node <span class="cov8" title="1">{
+        nodes := make([]Node, 0)
+        LOGIC := []string{"AND", "OR", "XOR"}
+
+        // Break down the tokens into a list of nodes with operations containing their operands on the
+        // left and right sides
+        idx := 0
+        for idx &lt; len(tokens) </span><span class="cov8" title="1">{
+                if tokens[idx].Type == "OP" </span><span class="cov8" title="1">{
+                        nodeL := Node{Value: tokens[idx-1].Value}
+                        nodeR := Node{Value: tokens[idx+1].Value}
+                        nodeC := Node{Value: tokens[idx].Value, Left: &amp;nodeL, Right: &amp;nodeR}
+                        nodes = append(nodes, nodeC)
+                        idx++
+                }</span> else<span class="cov8" title="1"> if utils.Contains(LOGIC, tokens[idx].Value) || tokens[idx].Value == "NOT" || tokens[idx].Type == "NESTED" </span><span class="cov8" title="1">{
+                        node := Node{Value: tokens[idx].Value}
+                        nodes = append(nodes, node)
+                }</span>
+                <span class="cov8" title="1">idx++</span>
+        }
+
+        <span class="cov8" title="1">var head *Node
+        head = &amp;Node{}
+        firstPass := true
+
+        // Loop through the nodes and build the tree
+        for idx := range nodes </span><span class="cov8" title="1">{
+                if utils.Contains(LOGIC, nodes[idx].Value) </span><span class="cov8" title="1">{
+                        nodes[idx].Left = head
+                        head = &amp;nodes[idx]
+                }</span> else<span class="cov8" title="1"> {
+                        if strings.HasPrefix(nodes[idx].Value, "(") </span><span class="cov0" title="0">{
+                                // If we come across a nested statement then we want to parse that as its own thing
+                                // and then just stick the resulting tree in as a node
+                                parsed := parseString(nodes[idx].Value[1 : len(nodes[idx].Value)-1])
+                                node := handleConditionals(parsed)
+                                if firstPass == false </span><span class="cov0" title="0">{
+                                        head.Right = &amp;node
+                                }</span> else<span class="cov0" title="0"> {
+                                        head = &amp;node
+                                }</span>
+                        } else<span class="cov8" title="1"> {
+                                if firstPass == false </span><span class="cov0" title="0">{
+                                        head.Right = &amp;nodes[idx]
+                                }</span> else<span class="cov8" title="1"> {
+                                        head = &amp;nodes[idx]
+                                }</span>
+                        }
+                }
+                <span class="cov8" title="1">firstPass = false</span>
+        }
+
+        <span class="cov8" title="1">return *head</span>
+}
+
+// Parse a list or dictionary into the action's data field
+func handleData(token Token, currentAction *Action) error <span class="cov8" title="1">{
+        if token.Type == "LIST" </span><span class="cov8" title="1">{
+                var d interface{}
+                err := json.Unmarshal([]byte(token.Value), &amp;d)
+                if err != nil </span><span class="cov8" title="1">{
+                        return err
+                }</span>
+                <span class="cov8" title="1">tmp := make([]map[string]interface{}, 0)
+                for _, v := range d.([]interface{}) </span><span class="cov8" title="1">{
+                        tmp = append(tmp, v.(map[string]interface{}))
+                }</span>
+                <span class="cov8" title="1">currentAction.Data = tmp</span>
+        } else<span class="cov8" title="1"> {
+                var d interface{}
+                err := json.Unmarshal([]byte(token.Value), &amp;d)
+                if err != nil </span><span class="cov8" title="1">{
+                        return err
+                }</span>
+                <span class="cov8" title="1">tmp := make([]map[string]interface{}, 1)
+                tmp[0] = d.(map[string]interface{})
+                currentAction.Data = tmp</span>
+        }
+        <span class="cov8" title="1">return nil</span>
+}
+
+// Parse a string or list into the action's ID field
+func handleIDs(token Token, currentAction *Action) error <span class="cov8" title="1">{
+        if token.Type == "LIST" </span><span class="cov8" title="1">{
+                var d interface{}
+                err := json.Unmarshal([]byte(token.Value), &amp;d)
+                if err != nil </span><span class="cov8" title="1">{
+                        return err
+                }</span>
+                <span class="cov8" title="1">tmp := make([]string, 0)
+                for _, v := range d.([]interface{}) </span><span class="cov8" title="1">{
+                        tmp = append(tmp, v.(string))
+                }</span>
+                <span class="cov8" title="1">currentAction.IDs = tmp</span>
+        } else<span class="cov8" title="1"> {
+                currentAction.IDs = []string{token.Value}
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+// Parse a string or list into the action's fields field
+func handleFields(token Token, currentAction *Action) error <span class="cov8" title="1">{
+        if token.Type == "LIST" </span><span class="cov8" title="1">{
+                var d interface{}
+                err := json.Unmarshal([]byte(token.Value), &amp;d)
+                if err != nil </span><span class="cov8" title="1">{
+                        return err
+                }</span>
+                <span class="cov8" title="1">tmp := make([]string, 0)
+                for _, v := range d.([]interface{}) </span><span class="cov8" title="1">{
+                        tmp = append(tmp, v.(string))
+                }</span>
+                <span class="cov8" title="1">currentAction.Fields = tmp</span>
+        } else<span class="cov8" title="1"> {
+                currentAction.Fields = []string{token.Value}
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+// buildActions takes a list of tokens and figures out which actions should be created to operate
+// within Ceres.
+func buildActions(tokens []Token, patterns map[string]string) ([]Action, error) <span class="cov8" title="1">{
+        tokenActions := make([][]Token, 0)
+        buffer := make([]Token, 0)
+        // Break the list of tokens down into a list of sepearate actions that were originally separated
+        // by pipe characters
+        for _, token := range tokens </span><span class="cov8" title="1">{
+                if token.Type != "PIPE" </span><span class="cov8" title="1">{
+                        buffer = append(buffer, token)
+                }</span> else<span class="cov8" title="1"> {
+                        tokenActions = append(tokenActions, buffer)
+                        buffer = make([]Token, 0)
+                }</span>
+        }
+        <span class="cov8" title="1">tokenActions = append(tokenActions, buffer)
+        actions := make([]Action, 0)
+
+        currentAction := Action{}
+        firstFlag := true
+
+        // Look through each action list and build/modify the action object from it
+        // TODO: break each "case" out into its own function for readability/maintainability
+        for _, tokenAction := range tokenActions </span><span class="cov8" title="1">{
+                command := tokenAction[0]
+                actionString := ""
+                actionSyntax := ""
+                for _, token := range tokenAction </span><span class="cov8" title="1">{
+                        actionString += token.Type + " "
+                        if token.Type != "STRING" </span><span class="cov8" title="1">{
+                                actionSyntax += token.Value
+                        }</span> else<span class="cov8" title="1"> {
+                                actionSyntax += "\"" + token.Value + "\""
+                        }</span>
+                        <span class="cov8" title="1">actionSyntax += " "</span>
+                }
+                <span class="cov8" title="1">actionString = actionString[:len(actionString)-1]
+                actionSyntax = actionSyntax[:len(actionSyntax)-1]
+
+                switch command.Type </span>{
+                case "GET":<span class="cov8" title="1">
+                        if !firstFlag </span><span class="cov8" title="1">{
+                                actions = append(actions, currentAction)
+                        }</span>
+
+                        <span class="cov8" title="1">if err := checkPattern(actionString, actionSyntax, patterns["GET"]); err != nil </span><span class="cov8" title="1">{
+                                return nil, err
+                        }</span>
+                        <span class="cov8" title="1">currentAction = Action{Type: "GET"}
+                        currentAction.Identifier = tokenAction[1].Value
+
+                        if len(tokenAction) &gt; 2 </span><span class="cov8" title="1">{
+                                if err := handleFields(tokenAction[2], &amp;currentAction); err != nil </span><span class="cov8" title="1">{
+                                        return nil, err
+                                }</span>
+                        }
+
+                        <span class="cov8" title="1">firstFlag = false</span>
+                case "COUNT":<span class="cov0" title="0">
+                        if !firstFlag </span><span class="cov0" title="0">{
+                                actions = append(actions, currentAction)
+                        }</span>
+
+                        <span class="cov0" title="0">if err := checkPattern(actionString, actionSyntax, patterns["COUNT"]); err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+                        <span class="cov0" title="0">currentAction = Action{Type: "COUNT"}
+                        currentAction.Identifier = tokenAction[1].Value
+
+                        firstFlag = false</span>
+                case "POST":<span class="cov8" title="1">
+                        if !firstFlag </span><span class="cov8" title="1">{
+                                actions = append(actions, currentAction)
+                        }</span>
+
+                        <span class="cov8" title="1">if err := checkPattern(actionString, actionSyntax, patterns["POST"]); err != nil </span><span class="cov8" title="1">{
+                                return nil, err
+                        }</span>
+                        <span class="cov8" title="1">currentAction = Action{Type: "POST"}
+                        currentAction.Identifier = tokenAction[1].Value
+
+                        if err := handleData(tokenAction[2], &amp;currentAction); err != nil </span><span class="cov8" title="1">{
+                                return nil, err
+                        }</span>
+
+                        <span class="cov8" title="1">firstFlag = false</span>
+                case "PUT":<span class="cov8" title="1">
+                        if !firstFlag </span><span class="cov8" title="1">{
+                                actions = append(actions, currentAction)
+                        }</span>
+
+                        <span class="cov8" title="1">if err := checkPattern(actionString, actionSyntax, patterns["PUT"]); err != nil </span><span class="cov8" title="1">{
+                                return nil, err
+                        }</span>
+                        <span class="cov8" title="1">currentAction = Action{Type: "PUT"}
+                        currentAction.Identifier = tokenAction[1].Value
+
+                        if err := handleData(tokenAction[2], &amp;currentAction); err != nil </span><span class="cov8" title="1">{
+                                return nil, err
+                        }</span>
+
+                        <span class="cov8" title="1">firstFlag = false</span>
+                case "PATCH":<span class="cov8" title="1">
+                        if !firstFlag </span><span class="cov8" title="1">{
+                                actions = append(actions, currentAction)
+                        }</span>
+
+                        <span class="cov8" title="1">if err := checkPattern(actionString, actionSyntax, patterns["PATCH"]); err != nil </span><span class="cov8" title="1">{
+                                return nil, err
+                        }</span>
+                        <span class="cov8" title="1">currentAction = Action{Type: "PATCH"}
+                        currentAction.Identifier = tokenAction[1].Value
+
+                        if err := handleIDs(tokenAction[2], &amp;currentAction); err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+                        <span class="cov8" title="1">if err := handleData(tokenAction[3], &amp;currentAction); err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+
+                        <span class="cov8" title="1">firstFlag = false</span>
+                case "DELETE":<span class="cov8" title="1">
+                        if !firstFlag </span><span class="cov8" title="1">{
+                                actions = append(actions, currentAction)
+                        }</span>
+
+                        <span class="cov8" title="1">if err := checkPattern(actionString, actionSyntax, patterns["DELETE"]); err != nil </span><span class="cov8" title="1">{
+                                return nil, err
+                        }</span>
+                        <span class="cov8" title="1">currentAction = Action{Type: "DELETE"}
+                        currentAction.Identifier = tokenAction[1].Value
+
+                        if err := handleIDs(tokenAction[2], &amp;currentAction); err != nil </span><span class="cov8" title="1">{
+                                return nil, err
+                        }</span>
+
+                        <span class="cov8" title="1">firstFlag = false</span>
+                case "FILTER":<span class="cov8" title="1">
+                        if err := checkPattern(actionString, actionSyntax, patterns["FILTER"]); err != nil </span><span class="cov8" title="1">{
+                                return nil, err
+                        }</span>
+                        <span class="cov8" title="1">currentAction.Filter = handleConditionals(tokenAction[1:])</span>
+                case "LIMIT":<span class="cov8" title="1">
+                        if err := checkPattern(actionString, actionSyntax, patterns["LIMIT"]); err != nil </span><span class="cov8" title="1">{
+                                return nil, err
+                        }</span>
+                        <span class="cov8" title="1">val, err := strconv.Atoi(tokenAction[1].Value)
+                        if err != nil </span><span class="cov8" title="1">{
+                                return nil, err
+                        }</span>
+                        <span class="cov8" title="1">currentAction.Limit = val</span>
+                case "ORDERASC":<span class="cov8" title="1">
+                        if err := checkPattern(actionString, actionSyntax, patterns["ORDERASC"]); err != nil </span><span class="cov8" title="1">{
+                                return nil, err
+                        }</span>
+                        <span class="cov8" title="1">currentAction.OrderDir = "ASC"
+                        currentAction.Order = tokenAction[1].Value</span>
+                case "ORDERDSC":<span class="cov8" title="1">
+                        if err := checkPattern(actionString, actionSyntax, patterns["ORDERDSC"]); err != nil </span><span class="cov8" title="1">{
+                                return nil, err
+                        }</span>
+                        <span class="cov8" title="1">currentAction.OrderDir = "DSC"
+                        currentAction.Order = tokenAction[1].Value</span>
+                case "DBADD":<span class="cov8" title="1">
+                        if !firstFlag </span><span class="cov8" title="1">{
+                                actions = append(actions, currentAction)
+                        }</span>
+
+                        <span class="cov8" title="1">if err := checkPattern(actionString, actionSyntax, patterns["DBADD"]); err != nil </span><span class="cov8" title="1">{
+                                return nil, err
+                        }</span>
+                        <span class="cov8" title="1">currentAction = Action{Type: "DBADD"}
+                        currentAction.Identifier = tokenAction[1].Value
+
+                        firstFlag = false</span>
+                case "COLADD":<span class="cov8" title="1">
+                        if !firstFlag </span><span class="cov8" title="1">{
+                                actions = append(actions, currentAction)
+                        }</span>
+
+                        <span class="cov8" title="1">if err := checkPattern(actionString, actionSyntax, patterns["COLADD"]); err != nil </span><span class="cov8" title="1">{
+                                return nil, err
+                        }</span>
+                        <span class="cov8" title="1">currentAction = Action{Type: "COLADD"}
+                        currentAction.Identifier = tokenAction[1].Value
+
+                        if err := handleData(tokenAction[2], &amp;currentAction); err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+
+                        <span class="cov8" title="1">firstFlag = false</span>
+                case "COLMOD":<span class="cov0" title="0">
+                        if !firstFlag </span><span class="cov0" title="0">{
+                                actions = append(actions, currentAction)
+                        }</span>
+
+                        <span class="cov0" title="0">if err := checkPattern(actionString, actionSyntax, patterns["COLMOD"]); err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+                        <span class="cov0" title="0">currentAction = Action{Type: "COLMOD"}
+                        currentAction.Identifier = tokenAction[1].Value
+
+                        if err := handleData(tokenAction[2], &amp;currentAction); err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+
+                        <span class="cov0" title="0">firstFlag = false</span>
+                case "DBDEL":<span class="cov8" title="1">
+                        if !firstFlag </span><span class="cov8" title="1">{
+                                actions = append(actions, currentAction)
+                        }</span>
+
+                        <span class="cov8" title="1">if err := checkPattern(actionString, actionSyntax, patterns["DBDEL"]); err != nil </span><span class="cov8" title="1">{
+                                return nil, err
+                        }</span>
+                        <span class="cov8" title="1">currentAction = Action{Type: "DBDEL"}
+                        currentAction.Identifier = tokenAction[1].Value
+
+                        firstFlag = false</span>
+                case "COLDEL":<span class="cov8" title="1">
+                        if !firstFlag </span><span class="cov8" title="1">{
+                                actions = append(actions, currentAction)
+                        }</span>
+
+                        <span class="cov8" title="1">if err := checkPattern(actionString, actionSyntax, patterns["COLDEL"]); err != nil </span><span class="cov8" title="1">{
+                                return nil, err
+                        }</span>
+                        <span class="cov8" title="1">currentAction = Action{Type: "COLDEL"}
+                        currentAction.Identifier = tokenAction[1].Value
+
+                        firstFlag = false</span>
+                case "USERADD":<span class="cov0" title="0">
+                        if !firstFlag </span><span class="cov0" title="0">{
+                                actions = append(actions, currentAction)
+                        }</span>
+
+                        <span class="cov0" title="0">if err := checkPattern(actionString, actionSyntax, patterns["USERADD"]); err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+                        <span class="cov0" title="0">currentAction = Action{Type: "USERADD"}
+                        if err := handleData(tokenAction[1], &amp;currentAction); err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+
+                        <span class="cov0" title="0">firstFlag = false</span>
+                case "USERMOD":<span class="cov0" title="0">
+                        if !firstFlag </span><span class="cov0" title="0">{
+                                actions = append(actions, currentAction)
+                        }</span>
+
+                        <span class="cov0" title="0">if err := checkPattern(actionString, actionSyntax, patterns["USERMOD"]); err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+                        <span class="cov0" title="0">currentAction = Action{Type: "USERMOD"}
+                        if err := handleData(tokenAction[1], &amp;currentAction); err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+
+                        <span class="cov0" title="0">firstFlag = false</span>
+                case "USERDEL":<span class="cov0" title="0">
+                        if !firstFlag </span><span class="cov0" title="0">{
+                                actions = append(actions, currentAction)
+                        }</span>
+
+                        <span class="cov0" title="0">if err := checkPattern(actionString, actionSyntax, patterns["USERDEL"]); err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+                        <span class="cov0" title="0">currentAction = Action{Type: "USERDEL"}
+                        currentAction.User = tokenAction[1].Value
+
+                        firstFlag = false</span>
+                case "USERGET":<span class="cov0" title="0">
+                        if !firstFlag </span><span class="cov0" title="0">{
+                                actions = append(actions, currentAction)
+                        }</span>
+
+                        <span class="cov0" title="0">if err := checkPattern(actionString, actionSyntax, patterns["USERGET"]); err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+                        <span class="cov0" title="0">currentAction = Action{Type: "USERGET"}
+                        currentAction.User = tokenAction[1].Value
+
+                        firstFlag = false</span>
+                case "PERMITADD":<span class="cov0" title="0">
+                        if !firstFlag </span><span class="cov0" title="0">{
+                                actions = append(actions, currentAction)
+                        }</span>
+
+                        <span class="cov0" title="0">if err := checkPattern(actionString, actionSyntax, patterns["PERMITADD"]); err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+                        <span class="cov0" title="0">currentAction = Action{Type: "PERMITADD"}
+                        currentAction.Identifier = tokenAction[1].Value
+                        if err := handleData(tokenAction[2], &amp;currentAction); err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+
+                        <span class="cov0" title="0">firstFlag = false</span>
+                case "PERMITMOD":<span class="cov0" title="0">
+                        if !firstFlag </span><span class="cov0" title="0">{
+                                actions = append(actions, currentAction)
+                        }</span>
+
+                        <span class="cov0" title="0">if err := checkPattern(actionString, actionSyntax, patterns["PERMITMOD"]); err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+                        <span class="cov0" title="0">currentAction = Action{Type: "PERMITMOD"}
+                        currentAction.Identifier = tokenAction[1].Value
+                        if err := handleData(tokenAction[2], &amp;currentAction); err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+
+                        <span class="cov0" title="0">firstFlag = false</span>
+                case "PERMITDEL":<span class="cov0" title="0">
+                        if !firstFlag </span><span class="cov0" title="0">{
+                                actions = append(actions, currentAction)
+                        }</span>
+
+                        <span class="cov0" title="0">if err := checkPattern(actionString, actionSyntax, patterns["PERMITDEL"]); err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+                        <span class="cov0" title="0">currentAction = Action{Type: "PERMITDEL"}
+                        currentAction.Identifier = tokenAction[1].Value
+                        currentAction.User = tokenAction[2].Value
+
+                        firstFlag = false</span>
+                case "PERMITGET":<span class="cov0" title="0">
+                        if !firstFlag </span><span class="cov0" title="0">{
+                                actions = append(actions, currentAction)
+                        }</span>
+
+                        <span class="cov0" title="0">if err := checkPattern(actionString, actionSyntax, patterns["PERMITGET"]); err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+                        <span class="cov0" title="0">currentAction = Action{Type: "PERMITGET"}
+                        currentAction.Identifier = tokenAction[1].Value
+                        currentAction.User = tokenAction[2].Value
+
+                        firstFlag = false</span>
+                }
+        }
+        <span class="cov8" title="1">actions = append(actions, currentAction)
+        return actions, nil</span>
+}
+
+// parseString builds a list of tokens based off of a string of text.
+func parseString(input string) []Token <span class="cov8" title="1">{
+        text := strings.Split(input, "")
+        depths := DepthStruct{Paren: 0, Brace: 0, Bracket: 0}
+        flags := FlagStruct{Quote: false}
+        buffer := ""
+        tokens := make([]Token, 0)
+
+        for idx, char := range text </span><span class="cov8" title="1">{
+                look_behind := ""
+                if idx &gt; 0 </span><span class="cov8" title="1">{
+                        look_behind = text[idx-1]
+                }</span>
+                <span class="cov8" title="1">if char == "\"" &amp;&amp; look_behind != "\\" </span><span class="cov8" title="1">{
+                        flags.Quote = !flags.Quote
+                        buffer += char
+                }</span> else<span class="cov8" title="1"> {
+                        if !flags.Quote </span><span class="cov8" title="1">{
+                                switch char </span>{
+                                case "(":<span class="cov0" title="0">
+                                        if depths.Paren == 0 </span><span class="cov0" title="0">{
+                                                flags.Paren = true
+                                        }</span>
+                                        <span class="cov0" title="0">depths.Paren += 1
+                                        buffer += char</span>
+                                case ")":<span class="cov0" title="0">
+                                        depths.Paren -= 1
+                                        buffer += char
+                                        if depths.Paren == 0 </span><span class="cov0" title="0">{
+                                                flags.Paren = false
+                                        }</span>
+                                case "[":<span class="cov8" title="1">
+                                        if depths.Bracket == 0 </span><span class="cov8" title="1">{
+                                                flags.Bracket = true
+                                        }</span>
+                                        <span class="cov8" title="1">depths.Bracket += 1
+                                        buffer += char</span>
+                                case "]":<span class="cov8" title="1">
+                                        depths.Bracket -= 1
+                                        buffer += char
+                                        if depths.Bracket == 0 </span><span class="cov8" title="1">{
+                                                flags.Bracket = false
+                                        }</span>
+                                case "{":<span class="cov8" title="1">
+                                        if depths.Brace == 0 </span><span class="cov8" title="1">{
+                                                flags.Brace = true
+                                        }</span>
+                                        <span class="cov8" title="1">depths.Brace += 1
+                                        buffer += char</span>
+                                case "}":<span class="cov8" title="1">
+                                        depths.Brace -= 1
+                                        buffer += char
+                                        if depths.Brace == 0 </span><span class="cov8" title="1">{
+                                                flags.Brace = false
+                                        }</span>
+                                case " ":<span class="cov8" title="1">
+                                        if flags.Bracket || flags.Brace || flags.Paren </span><span class="cov8" title="1">{
+                                                buffer += char
+                                        }</span> else<span class="cov8" title="1"> {
+                                                child := Token{Value: buffer}
+                                                determineType(buffer, &amp;child)
+                                                tokens = append(tokens, child)
+                                                buffer = ""
+                                        }</span>
+                                case ",":<span class="cov8" title="1">
+                                        if flags.Bracket || flags.Brace || flags.Paren </span><span class="cov8" title="1">{
+                                                buffer += char
+                                        }</span> else<span class="cov8" title="1"> {
+                                                child1 := Token{Value: buffer}
+                                                determineType(buffer, &amp;child1)
+                                                tokens = append(tokens, child1)
+
+                                                child2 := Token{Value: ","}
+                                                determineType(buffer, &amp;child2)
+                                                tokens = append(tokens, child2)
+                                        }</span>
+                                default:<span class="cov8" title="1">
+                                        buffer += char</span>
+                                }
+                        } else<span class="cov8" title="1"> {
+                                buffer += char
+                        }</span>
+                }
+        }
+        <span class="cov8" title="1">child := Token{Value: buffer}
+        determineType(buffer, &amp;child)
+        tokens = append(tokens, child)
+
+        return tokens</span>
+
+}
+
+// Parse processes input and get the actions as a result.
+// Actions are verified against the AQL grammar for correctness.
+func Parse(input string) ([]Action, error) <span class="cov8" title="1">{
+        tokens := parseString(input)
+        patterns, err := getPatterns()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">actions, err := buildActions(tokens, patterns)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return actions, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">// config.go
 
 package config
 
 import (
-        log "ceres/logging"
         "encoding/json"
         "io/ioutil"
         "os"
@@ -92,33 +878,31 @@ type ConfigObject struct {
         LogLevel         string `json:"log-level" binding:"required"`
         CeresDir         string `json:"ceres-dir" binding:"required"`
         DataDir          string `json:"data-dir" binding:"required"`
+        IndexDir         string `json:"index-dir" binding:"required"`
         StorageLineLimit int    `json:"storage-line-limit" binding:"required"`
+        Port             int    `json:"port" binding:"required"`
 }
 
 var Config ConfigObject
 
 func ReadConfigFile() *ConfigObject <span class="cov8" title="1">{
-        log.DEBUG("Loading Ceres configuration...")
 
         // Set default path if we are not passed one
         path := os.Getenv("CERES_CONFIG")
         if path == "" </span><span class="cov8" title="1">{
-                path = "config/config.json"
+                path = ".ceres/config/config.json"
         }</span>
 
         // Open our jsonFile
         <span class="cov8" title="1">jsonFile, err := os.Open(path)
 
-        // If we os.Open returns an error then handle it
+        // If os.Open returns an error then handle it
         if err != nil </span><span class="cov8" title="1">{
-                log.ERROR("Unable to read json file")
                 panic(err)</span>
         }
 
-        <span class="cov8" title="1">log.INFO("Successfully Opened config/config.json")
-
         // Read and unmarshal the JSON
-        byteValue, _ := ioutil.ReadAll(jsonFile)
+        <span class="cov8" title="1">byteValue, _ := ioutil.ReadAll(jsonFile)
         json.Unmarshal(byteValue, &amp;Config)
 
         defer jsonFile.Close()
@@ -127,7 +911,7 @@ func ReadConfigFile() *ConfigObject <span class="cov8" title="1">{
 }
 </pre>
 		
-		<pre class="file" id="file1" style="display: none">// cursor.go
+		<pre class="file" id="file2" style="display: none">// cursor.go
 
 package cursor
 
@@ -142,6 +926,7 @@ const (
         ModeRead IOMode = iota
         ModeWrite
         ModeDelete
+        ModePatch
 )
 
 const (
@@ -165,29 +950,55 @@ func Initialize(lowerBound, upperBound int, mode IOMode) <span class="cov8" titl
         UpperBound = upperBound
 }</span>
 
-func Next(line string, datum interface{}) (IOOp, map[string]interface{}, string, error) <span class="cov8" title="1">{
+func Next(line string, datum map[string]interface{}) (IOOp, map[string]interface{}, string, error) <span class="cov8" title="1">{
         Index += 1
         if Index &gt;= LowerBound &amp;&amp; Index &lt;= UpperBound </span><span class="cov8" title="1">{
-                if Mode == ModeRead </span><span class="cov8" title="1">{
+                switch Mode </span>{
+                case ModeRead:<span class="cov8" title="1">
                         var outInterface map[string]interface{}
-                        err := json.Unmarshal([]byte(line), &amp;outInterface)
+                        if line == "" </span><span class="cov0" title="0">{
+                                return OpRead, outInterface, "", nil
+                        }</span>
+                        <span class="cov8" title="1">err := json.Unmarshal([]byte(line), &amp;outInterface)
                         if err != nil </span><span class="cov8" title="1">{
                                 return OpError, nil, "", err
                         }</span>
                         <span class="cov8" title="1">return OpRead, outInterface, "", nil</span>
-                } else<span class="cov8" title="1"> if Mode == ModeWrite </span><span class="cov8" title="1">{
+                case ModeWrite:<span class="cov8" title="1">
                         var outString string
+                        var outInterface map[string]interface{}
+                        json.Unmarshal([]byte(line), &amp;outInterface)
                         outBytes, err := json.Marshal(datum)
                         if err != nil </span><span class="cov8" title="1">{
                                 return OpError, nil, "", err
                         }</span>
                         <span class="cov8" title="1">outString = string(outBytes) + "\n"
-                        return OpWrite, nil, outString, nil</span>
-                } else<span class="cov8" title="1"> if Mode == ModeDelete </span><span class="cov8" title="1">{
+                        return OpWrite, outInterface, outString, nil</span>
+                case ModeDelete:<span class="cov8" title="1">
                         var outString string
+                        var outInterface map[string]interface{}
                         outString = "\n"
-                        return OpDelete, nil, outString, nil
-                }</span>
+                        json.Unmarshal([]byte(line), &amp;outInterface)
+                        return OpDelete, outInterface, outString, nil</span>
+                case ModePatch:<span class="cov8" title="1">
+                        var outString string
+                        var outInterface map[string]interface{}
+                        tmpInterface := make(map[string]interface{})
+                        json.Unmarshal([]byte(line), &amp;outInterface)
+                        for key, val := range outInterface </span><span class="cov8" title="1">{
+                                if _, ok := datum[key]; !ok </span><span class="cov8" title="1">{
+                                        tmpInterface[key] = val
+                                }</span> else<span class="cov8" title="1"> {
+                                        tmpInterface[key] = datum[key]
+                                }</span>
+                        }
+                        <span class="cov8" title="1">outBytes, err := json.Marshal(tmpInterface)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return OpError, nil, "", err
+                        }</span>
+                        <span class="cov8" title="1">outString = string(outBytes) + "\n"
+                        return OpWrite, outInterface, outString, nil</span>
+                }
         }
         <span class="cov8" title="1">if Index == UpperBound+1 </span><span class="cov8" title="1">{
                 return OpNext, nil, "", nil
@@ -201,71 +1012,16 @@ func Advance(lowerBound, upperBound int) <span class="cov8" title="1">{
 }</span>
 </pre>
 		
-		<pre class="file" id="file2" style="display: none">// logging.go
+		<pre class="file" id="file3" style="display: none">// schema.go
 
-package logging
-
-import (
-        log "github.com/sirupsen/logrus"
-)
-
-func Initialize(level string) <span class="cov8" title="1">{
-        log.SetFormatter(&amp;log.JSONFormatter{})
-        lvl, err := log.ParseLevel(level)
-        if err != nil </span><span class="cov8" title="1">{
-                panic(err)</span>
-        }
-        <span class="cov8" title="1">log.SetLevel(lvl)</span>
-}
-
-func TRACE(message string) <span class="cov8" title="1">{
-        log.Trace(message)
-}</span>
-
-func DEBUG(message string) <span class="cov8" title="1">{
-        log.Debug(message)
-}</span>
-
-func INFO(message string) <span class="cov8" title="1">{
-        log.Info(message)
-}</span>
-
-func WARN(message string) <span class="cov8" title="1">{
-        log.Warn(message)
-}</span>
-
-func ERROR(message string) <span class="cov8" title="1">{
-        log.Error(message)
-}</span>
-
-func FATAL(message string) <span class="cov8" title="1">{
-        log.Fatal(message)
-}</span>
-
-func PANIC(message string) <span class="cov8" title="1">{
-        log.Panic(message)
-}</span>
-</pre>
-		
-		<pre class="file" id="file3" style="display: none">// manager.go
-
-package manager
+package freespace
 
 import (
-        "bufio"
         "ceres/config"
-        "ceres/cursor"
-        log "ceres/logging"
-        "ceres/utils"
         "encoding/json"
-        "fmt"
         "io/ioutil"
         "os"
-        "sort"
-        "strconv"
-        "strings"
-
-        "github.com/google/uuid"
+        "path/filepath"
 )
 
 type FreeSpaceFile struct {
@@ -285,38 +1041,27 @@ type FreeSpaceStruct struct {
         Databases map[string]FreeSpaceDatabase
 }
 
-type ToWriteStruct struct {
-        Data   []map[string]interface{}
-        Blocks [][]int
-}
-
 var FreeSpace FreeSpaceStruct
 
 func LoadFreeSpace() error <span class="cov8" title="1">{
-        log.DEBUG("Loading free space file...")
-
-        path := config.Config.CeresDir + "/free_space.json"
+        path := filepath.Join(config.Config.CeresDir, "free_space.json")
 
         // Open our jsonFile
         jsonFile, err := os.Open(path)
 
-        // If we os.Open returns an error then handle it
+        // If os.Open returns an error then handle it
         if err != nil </span><span class="cov8" title="1">{
-                log.ERROR("Unable to read json file")
                 return err
         }</span>
 
-        <span class="cov8" title="1">log.INFO("Successfully Opened " + path)
-
         // Read and unmarshal the JSON
-        byteValue, _ := ioutil.ReadAll(jsonFile)
+        <span class="cov8" title="1">byteValue, _ := ioutil.ReadAll(jsonFile)
 
         var f interface{}
 
         // Read the JSON
         err = json.Unmarshal(byteValue, &amp;f)
         if err != nil </span><span class="cov8" title="1">{
-                log.ERROR("Unable to unmarshal json file")
                 return err
         }</span>
 
@@ -364,7 +1109,203 @@ func LoadFreeSpace() error <span class="cov8" title="1">{
         <span class="cov8" title="1">return nil</span>
 }
 
-func read(dbIdent, colIdent, fileIdent string, blocks [][]int) ([]map[string]interface{}, error) <span class="cov8" title="1">{
+func WriteFreeSpace() error <span class="cov8" title="1">{
+        path := filepath.Join(config.Config.CeresDir, "free_space.json")
+
+        output := make(map[string]interface{})
+        for dbKey, db := range FreeSpace.Databases </span><span class="cov8" title="1">{
+                dbInterface := make(map[string]interface{})
+                for colKey, col := range db.Collections </span><span class="cov8" title="1">{
+                        colInterface := make(map[string]interface{})
+                        for fileKey, file := range col.Files </span><span class="cov8" title="1">{
+                                fileInterface := map[string]interface{}{"full": file.Full, "blocks": file.Blocks}
+                                colInterface[fileKey] = fileInterface
+                        }</span>
+                        <span class="cov8" title="1">dbInterface[colKey] = colInterface</span>
+                }
+                <span class="cov8" title="1">output[dbKey] = dbInterface</span>
+        }
+
+        <span class="cov8" title="1">freeSpaceContents, _ := json.MarshalIndent(output, "", "    ")
+        _ = ioutil.WriteFile(path, freeSpaceContents, 0644)
+
+        return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">// index.go
+
+package index
+
+import (
+        "ceres/config"
+        "fmt"
+        "os"
+        "path/filepath"
+        "strings"
+)
+
+func Add(database, collection string, datum map[string]interface{}) error <span class="cov8" title="1">{
+        for key, val := range datum </span><span class="cov8" title="1">{
+                if key == ".id" </span><span class="cov8" title="1">{
+                        continue</span>
+                }
+                <span class="cov8" title="1">if key == "password" &amp;&amp; database == "_auth" </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+                <span class="cov8" title="1">stringVal := fmt.Sprintf("%v", val)
+                dirPath := filepath.Join(config.Config.IndexDir, database, collection, key)
+                filePath := filepath.Join(dirPath, stringVal)
+                allPath := filepath.Join(config.Config.IndexDir, database, collection, "all")
+                if _, err := os.Stat(dirPath); os.IsNotExist(err) </span><span class="cov8" title="1">{
+                        err = os.Mkdir(dirPath, 0755)
+                        if err != nil </span><span class="cov8" title="1">{
+                                return err
+                        }</span>
+                }
+                <span class="cov8" title="1">f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+                if err != nil </span><span class="cov8" title="1">{
+                        return err
+                }</span>
+                <span class="cov8" title="1">f.WriteString(datum[".id"].(string) + "\n")
+                f.Close()
+                f, err = os.OpenFile(allPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+                if err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+                <span class="cov8" title="1">f.WriteString(datum[".id"].(string) + "\n")
+                f.Close()</span>
+        }
+        <span class="cov8" title="1">return nil</span>
+}
+
+func Delete(database, collection string, datum map[string]interface{}) error <span class="cov8" title="1">{
+        for key, val := range datum </span><span class="cov8" title="1">{
+                if key == ".id" </span><span class="cov8" title="1">{
+                        continue</span>
+                }
+                <span class="cov8" title="1">if key == "password" &amp;&amp; database == "_auth" </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+                <span class="cov8" title="1">stringVal := fmt.Sprintf("%v", val)
+                filePath := filepath.Join(config.Config.IndexDir, database, collection, key, stringVal)
+                data, err := os.ReadFile(filePath)
+                if err != nil </span><span class="cov8" title="1">{
+                        return err
+                }</span>
+                <span class="cov8" title="1">indices := strings.Split(string(data), "\n")
+                indices = removeIndex(indices, datum[".id"].(string))
+                if len(indices) == 1 </span><span class="cov8" title="1">{
+                        if err = os.Remove(filePath); err != nil </span><span class="cov8" title="1">{
+                                return err
+                        }</span>
+                } else<span class="cov8" title="1"> {
+                        os.WriteFile(filePath, []byte(strings.Join(indices, "\n")), 0644)
+                }</span>
+                <span class="cov8" title="1">allPath := filepath.Join(config.Config.IndexDir, database, collection, "all")
+                data, err = os.ReadFile(allPath)
+                if err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+                <span class="cov8" title="1">indices = strings.Split(string(data), "\n")
+                indices = removeIndex(indices, datum[".id"].(string))
+                if len(indices) == 1 </span><span class="cov8" title="1">{
+                        if err = os.Remove(allPath); err != nil </span><span class="cov0" title="0">{
+                                return err
+                        }</span>
+                } else<span class="cov8" title="1"> {
+                        os.WriteFile(allPath, []byte(strings.Join(indices, "\n")), 0644)
+                }</span>
+        }
+        <span class="cov8" title="1">return nil</span>
+}
+
+func Update(database, collection string, oldDatum, newDatum map[string]interface{}) error <span class="cov8" title="1">{
+        if err := Delete(database, collection, oldDatum); err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+        <span class="cov8" title="1">if err := Add(database, collection, newDatum); err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+func Get(database, collection, key, value string) ([]string, error) <span class="cov8" title="1">{
+        filePath := filepath.Join(config.Config.IndexDir, database, collection, key, value)
+        data, err := os.ReadFile(filePath)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">indices := strings.Split(string(data), "\n")
+        return indices[:len(indices)-1], nil</span>
+}
+
+func All(database, collection string) ([]string, error) <span class="cov8" title="1">{
+        filePath := filepath.Join(config.Config.IndexDir, database, collection, "all")
+        data, err := os.ReadFile(filePath)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">indices := strings.Split(string(data), "\n")
+        return indices[:len(indices)-1], nil</span>
+}
+
+func removeIndex(indices []string, index string) []string <span class="cov8" title="1">{
+        idx := linearSearch(indices, index)
+        if idx != -1 </span><span class="cov8" title="1">{
+                return append(indices[:idx], indices[idx+1:]...)
+        }</span>
+        <span class="cov8" title="1">return indices</span>
+}
+
+func linearSearch(s []string, val string) int <span class="cov8" title="1">{
+        for i, v := range s </span><span class="cov8" title="1">{
+                if v == val </span><span class="cov8" title="1">{
+                        return i
+                }</span>
+        }
+        <span class="cov8" title="1">return -1</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">// manager.go
+
+package manager
+
+import (
+        "bufio"
+        "ceres/aql"
+        "ceres/config"
+        "ceres/cursor"
+        "ceres/freespace"
+        "ceres/index"
+        log "ceres/logging"
+        "ceres/schema"
+        "ceres/utils"
+        "encoding/json"
+        "errors"
+        "fmt"
+        "os"
+        "path/filepath"
+        "sort"
+        "strconv"
+        "strings"
+
+        "github.com/google/uuid"
+        "golang.org/x/crypto/bcrypt"
+)
+
+type ToWriteStruct struct {
+        Data   []map[string]interface{}
+        Blocks [][]int
+}
+
+type ToOverWriteStruct struct {
+        Data    []map[string]interface{}
+        Indices []int
+}
+
+func readData(dbIdent, colIdent, fileIdent string, blocks [][]int) ([]map[string]interface{}, error) <span class="cov8" title="1">{
         blockIdx := 0
         blockLen := len(blocks)
         cursor.Initialize(blocks[0][0], blocks[0][1], cursor.ModeRead)
@@ -399,7 +1340,7 @@ func read(dbIdent, colIdent, fileIdent string, blocks [][]int) ([]map[string]int
         <span class="cov8" title="1">return output, nil</span>
 }
 
-func write(dbIdent, colIdent, fileIdent string, blocks [][]int, data []map[string]interface{}) error <span class="cov8" title="1">{
+func writeData(dbIdent, colIdent, fileIdent string, blocks [][]int, data []map[string]interface{}) error <span class="cov8" title="1">{
         blockIdx := 0
         dataIdx := 0
         dataLen := len(data)
@@ -416,7 +1357,7 @@ func write(dbIdent, colIdent, fileIdent string, blocks [][]int, data []map[strin
         s, e := utils.ReadLine(r)
         for e == nil </span><span class="cov8" title="1">{
                 if dataIdx &lt; dataLen </span><span class="cov8" title="1">{
-                        data[dataIdx][".id"] = fmt.Sprintf("%s-%d", fileIdent, cursor.Index+1)
+                        data[dataIdx][".id"] = fmt.Sprintf("%s.%d", fileIdent, cursor.Index+1)
                         op, _, dat, err := cursor.Next(s, data[dataIdx])
                         if err != nil </span><span class="cov8" title="1">{
                                 log.ERROR("Cursor error")
@@ -425,6 +1366,7 @@ func write(dbIdent, colIdent, fileIdent string, blocks [][]int, data []map[strin
                         <span class="cov8" title="1">switch op </span>{
                         case cursor.OpWrite:<span class="cov8" title="1">
                                 newContents = append(newContents, dat)
+                                index.Add(dbIdent, colIdent, data[dataIdx])
                                 dataIdx += 1</span>
                         case cursor.OpJump:<span class="cov8" title="1">
                                 newContents = append(newContents, s+"\n")</span>
@@ -448,7 +1390,104 @@ func write(dbIdent, colIdent, fileIdent string, blocks [][]int, data []map[strin
         return nil</span>
 }
 
-func delete(dbIdent, colIdent, fileIdent string, blocks [][]int) error <span class="cov8" title="1">{
+func overwriteData(dbIdent, colIdent, fileIdent string, blocks [][]int, data []map[string]interface{}) error <span class="cov8" title="1">{
+        blockIdx := 0
+        dataIdx := 0
+        dataLen := len(data)
+        cursor.Initialize(blocks[0][0], blocks[0][1], cursor.ModeWrite)
+        newContents := make([]string, 0)
+
+        path := config.Config.DataDir + "/" + dbIdent + "/" + colIdent + "/" + fileIdent
+        f, err := os.Open(path)
+        if err != nil </span><span class="cov0" title="0">{
+                log.ERROR("Could not open file: " + path)
+                return err
+        }</span>
+        <span class="cov8" title="1">r := bufio.NewReader(f)
+        s, e := utils.ReadLine(r)
+        for e == nil </span><span class="cov8" title="1">{
+                if dataIdx &lt; dataLen </span><span class="cov8" title="1">{
+                        op, datum, dat, err := cursor.Next(s, data[dataIdx])
+                        if err != nil </span><span class="cov0" title="0">{
+                                log.ERROR("Cursor error")
+                                return err
+                        }</span>
+                        <span class="cov8" title="1">switch op </span>{
+                        case cursor.OpWrite:<span class="cov8" title="1">
+                                newContents = append(newContents, dat)
+                                index.Update(dbIdent, colIdent, datum, data[dataIdx])
+                                dataIdx += 1</span>
+                        case cursor.OpJump:<span class="cov8" title="1">
+                                newContents = append(newContents, s+"\n")</span>
+                        case cursor.OpNext:<span class="cov8" title="1">
+                                blockIdx += 1
+                                newContents = append(newContents, s+"\n")
+                                cursor.Advance(blocks[blockIdx][0], blocks[blockIdx][1])</span>
+                        }
+                } else<span class="cov8" title="1"> {
+                        newContents = append(newContents, s+"\n")
+                }</span>
+                <span class="cov8" title="1">s, e = utils.ReadLine(r)</span>
+        }
+
+        // Write out the new contents
+        <span class="cov8" title="1">output := strings.Join(newContents[:], "")
+        f, _ = os.Create(path)
+        defer f.Close()
+        f.Write([]byte(output))
+
+        return nil</span>
+}
+
+func patchData(dbIdent, colIdent, fileIdent string, blocks [][]int, data map[string]interface{}) error <span class="cov8" title="1">{
+        blockIdx := 0
+        blockLen := len(blocks)
+        cursor.Initialize(blocks[0][0], blocks[0][1], cursor.ModePatch)
+        newContents := make([]string, 0)
+
+        path := config.Config.DataDir + "/" + dbIdent + "/" + colIdent + "/" + fileIdent
+        f, err := os.Open(path)
+        if err != nil </span><span class="cov0" title="0">{
+                log.ERROR("Could not open file: " + path)
+                return err
+        }</span>
+        <span class="cov8" title="1">r := bufio.NewReader(f)
+        s, e := utils.ReadLine(r)
+        for e == nil </span><span class="cov8" title="1">{
+                op, datum, dat, err := cursor.Next(s, data)
+                if err != nil </span><span class="cov0" title="0">{
+                        log.ERROR("Cursor error")
+                        return err
+                }</span>
+                <span class="cov8" title="1">switch op </span>{
+                case cursor.OpWrite:<span class="cov8" title="1">
+                        newContents = append(newContents, dat)
+                        newDatum := make(map[string]interface{})
+                        json.Unmarshal([]byte(dat), &amp;newDatum)
+                        index.Update(dbIdent, colIdent, datum, newDatum)</span>
+                case cursor.OpJump:<span class="cov8" title="1">
+                        newContents = append(newContents, s+"\n")</span>
+                case cursor.OpNext:<span class="cov8" title="1">
+                        blockIdx += 1
+                        newContents = append(newContents, s+"\n")
+                        if blockIdx == blockLen </span><span class="cov8" title="1">{
+                                break</span>
+                        }
+                        <span class="cov0" title="0">cursor.Advance(blocks[blockIdx][0], blocks[blockIdx][1])</span>
+                }
+                <span class="cov8" title="1">s, e = utils.ReadLine(r)</span>
+        }
+
+        // Write out the new contents
+        <span class="cov8" title="1">output := strings.Join(newContents[:], "")
+        f, _ = os.Create(path)
+        defer f.Close()
+        f.Write([]byte(output))
+
+        return nil</span>
+}
+
+func deleteData(dbIdent, colIdent, fileIdent string, blocks [][]int) error <span class="cov8" title="1">{
         blockIdx := 0
         blockLen := len(blocks)
         cursor.Initialize(blocks[0][0], blocks[0][1], cursor.ModeDelete)
@@ -463,10 +1502,11 @@ func delete(dbIdent, colIdent, fileIdent string, blocks [][]int) error <span cla
         <span class="cov8" title="1">r := bufio.NewReader(f)
         s, e := utils.ReadLine(r)
         for e == nil </span><span class="cov8" title="1">{
-                op, _, dat, _ := cursor.Next(s, nil)
+                op, datum, dat, _ := cursor.Next(s, nil)
                 switch op </span>{
                 case cursor.OpDelete:<span class="cov8" title="1">
-                        newContents = append(newContents, dat)</span>
+                        newContents = append(newContents, dat)
+                        index.Delete(dbIdent, colIdent, datum)</span>
                 case cursor.OpJump:<span class="cov8" title="1">
                         newContents = append(newContents, s+"\n")</span>
                 case cursor.OpNext:<span class="cov8" title="1">
@@ -495,7 +1535,7 @@ func Read(database, collection string, ids []string) ([]map[string]interface{}, 
 
         // Determine which IDs from which files should be read
         for _, id := range ids </span><span class="cov8" title="1">{
-                parts := strings.Split(id, "-")
+                parts := strings.Split(id, ".")
                 if val, ok := toRead[parts[0]]; ok </span><span class="cov8" title="1">{
                         idx, _ := strconv.Atoi(parts[1])
                         toRead[parts[0]] = append(val, idx)
@@ -508,7 +1548,7 @@ func Read(database, collection string, ids []string) ([]map[string]interface{}, 
         // Build up range blocks
         <span class="cov8" title="1">for key, val := range toRead </span><span class="cov8" title="1">{
                 blocks := utils.BuildRangeBlocks(val)
-                data, err := read(database, collection, key, blocks)
+                data, err := readData(database, collection, key, blocks)
                 if err != nil </span><span class="cov8" title="1">{
                         return nil, err
                 }</span>
@@ -519,10 +1559,14 @@ func Read(database, collection string, ids []string) ([]map[string]interface{}, 
 }
 
 func Write(database, collection string, data []map[string]interface{}) error <span class="cov8" title="1">{
-        recordsRemaining := len(data)
+        if err := schema.ValidateDataAgainstSchema(database, collection, data); err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">recordsRemaining := len(data)
         toWrite := make(map[string]ToWriteStruct)
 
-        db := FreeSpace.Databases[database]
+        db := freespace.FreeSpace.Databases[database]
         col := db.Collections[collection]
 
         keys := make([]string, 0, len(col.Files))
@@ -537,7 +1581,6 @@ func Write(database, collection string, data []map[string]interface{}) error <sp
                         // Direct data to be written to the file
                         writable := ToWriteStruct{Blocks: make([][]int, 0), Data: make([]map[string]interface{}, 0)}
                         for _, block := range val.Blocks </span><span class="cov8" title="1">{
-                                log.INFO(fmt.Sprintf("Block size: %d", recordsRemaining))
                                 blockSize := block[1] - block[0] + 1
                                 if recordsRemaining &gt;= blockSize </span><span class="cov8" title="1">{
                                         // Handle more records than is available in the block
@@ -571,11 +1614,11 @@ func Write(database, collection string, data []map[string]interface{}) error <sp
         // Handle overflow
         <span class="cov8" title="1">for recordsRemaining &gt; 0 </span><span class="cov8" title="1">{
                 id := uuid.New().String()
-                val := FreeSpaceFile{Full: false, Blocks: [][]int{{0, config.Config.StorageLineLimit - 1}}}
+                val := freespace.FreeSpaceFile{Full: false, Blocks: [][]int{{0, config.Config.StorageLineLimit - 1}}}
                 path := config.Config.DataDir + "/" + database + "/" + collection + "/" + id
                 // Write out the new contents
                 output := ""
-                for idx := 0; idx &lt; 32; idx++ </span><span class="cov8" title="1">{
+                for idx := 0; idx &lt; config.Config.StorageLineLimit; idx++ </span><span class="cov8" title="1">{
                         output += "\n"
                 }</span>
                 <span class="cov8" title="1">f, _ := os.Create(path)
@@ -606,15 +1649,92 @@ func Write(database, collection string, data []map[string]interface{}) error <sp
                 if len(val.Blocks) == 0 </span><span class="cov8" title="1">{
                         val.Full = true
                 }</span>
+                <span class="cov8" title="1">if col.Files == nil </span><span class="cov8" title="1">{
+                        col.Files = make(map[string]freespace.FreeSpaceFile)
+                }</span>
                 <span class="cov8" title="1">col.Files[id] = val</span>
         }
 
+        <span class="cov8" title="1">if db.Collections == nil </span><span class="cov0" title="0">{
+                db.Collections = make(map[string]freespace.FreeSpaceCollection)
+        }</span>
         <span class="cov8" title="1">db.Collections[collection] = col
-        FreeSpace.Databases[database] = db
+        if freespace.FreeSpace.Databases == nil </span><span class="cov0" title="0">{
+                freespace.FreeSpace.Databases = make(map[string]freespace.FreeSpaceDatabase)
+        }</span>
+        <span class="cov8" title="1">freespace.FreeSpace.Databases[database] = db
+
+        freespace.WriteFreeSpace()
 
         for key, val := range toWrite </span><span class="cov8" title="1">{
-                err := write(database, collection, key, val.Blocks, val.Data)
-                if err != nil </span><span class="cov8" title="1">{
+                err := writeData(database, collection, key, val.Blocks, val.Data)
+                if err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+        }
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+func OverWrite(database, collection string, data []map[string]interface{}) error <span class="cov8" title="1">{
+        if err := schema.ValidateDataAgainstSchema(database, collection, data); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">toOverWrite := make(map[string]ToOverWriteStruct)
+
+        for _, datum := range data </span><span class="cov8" title="1">{
+                parts := strings.Split(datum[".id"].(string), ".")
+                if val, ok := toOverWrite[parts[0]]; ok </span><span class="cov8" title="1">{
+                        idx, _ := strconv.Atoi(parts[1])
+                        val.Indices = append(val.Indices, idx)
+                        val.Data = append(val.Data, datum)
+                        toOverWrite[parts[0]] = val
+                }</span> else<span class="cov8" title="1"> {
+                        idx, _ := strconv.Atoi(parts[1])
+                        writable := ToOverWriteStruct{Indices: make([]int, 0), Data: make([]map[string]interface{}, 0)}
+                        writable.Indices = []int{idx}
+                        writable.Data = []map[string]interface{}{datum}
+                        toOverWrite[parts[0]] = writable
+                }</span>
+        }
+
+        // Build up range blocks
+        <span class="cov8" title="1">for key, val := range toOverWrite </span><span class="cov8" title="1">{
+                blocks := utils.BuildRangeBlocks((val.Indices))
+                err := overwriteData(database, collection, key, blocks, val.Data)
+                if err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+        }
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+func Patch(database, collection string, ids []string, data map[string]interface{}) error <span class="cov8" title="1">{
+        if err := schema.ValidateDataAgainstSchema(database, collection, []map[string]interface{}{data}); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">toPatch := make(map[string][]int)
+
+        // Determine which IDs from which files should be read
+        for _, id := range ids </span><span class="cov8" title="1">{
+                parts := strings.Split(id, ".")
+                if val, ok := toPatch[parts[0]]; ok </span><span class="cov0" title="0">{
+                        idx, _ := strconv.Atoi(parts[1])
+                        toPatch[parts[0]] = append(val, idx)
+                }</span> else<span class="cov8" title="1"> {
+                        idx, _ := strconv.Atoi(parts[1])
+                        toPatch[parts[0]] = []int{idx}
+                }</span>
+        }
+
+        // Build up range blocks
+        <span class="cov8" title="1">for key, val := range toPatch </span><span class="cov8" title="1">{
+                blocks := utils.BuildRangeBlocks((val))
+                err := patchData(database, collection, key, blocks, data)
+                if err != nil </span><span class="cov0" title="0">{
                         return err
                 }</span>
         }
@@ -627,7 +1747,7 @@ func Delete(database, collection string, ids []string) error <span class="cov8" 
 
         // Determine which IDs from which files should be read
         for _, id := range ids </span><span class="cov8" title="1">{
-                parts := strings.Split(id, "-")
+                parts := strings.Split(id, ".")
                 if val, ok := toDelete[parts[0]]; ok </span><span class="cov8" title="1">{
                         idx, _ := strconv.Atoi(parts[1])
                         toDelete[parts[0]] = append(val, idx)
@@ -637,13 +1757,16 @@ func Delete(database, collection string, ids []string) error <span class="cov8" 
                 }</span>
         }
 
-        <span class="cov8" title="1">db := FreeSpace.Databases[database]
+        <span class="cov8" title="1">db := freespace.FreeSpace.Databases[database]
         col := db.Collections[collection]
+        if col.Files == nil </span><span class="cov0" title="0">{
+                col.Files = make(map[string]freespace.FreeSpaceFile)
+        }</span>
 
         // Build up range blocks
-        for key, val := range toDelete </span><span class="cov8" title="1">{
+        <span class="cov8" title="1">for key, val := range toDelete </span><span class="cov8" title="1">{
                 blocks := utils.BuildRangeBlocks((val))
-                err := delete(database, collection, key, blocks)
+                err := deleteData(database, collection, key, blocks)
                 if err != nil </span><span class="cov8" title="1">{
                         return err
                 }</span>
@@ -655,14 +1778,1037 @@ func Delete(database, collection string, ids []string) error <span class="cov8" 
                 col.Files[key] = fi</span>
         }
 
+        <span class="cov8" title="1">if db.Collections == nil </span><span class="cov0" title="0">{
+                db.Collections = make(map[string]freespace.FreeSpaceCollection)
+        }</span>
         <span class="cov8" title="1">db.Collections[collection] = col
-        FreeSpace.Databases[database] = db
+        if freespace.FreeSpace.Databases == nil </span><span class="cov0" title="0">{
+                freespace.FreeSpace.Databases = make(map[string]freespace.FreeSpaceDatabase)
+        }</span>
+        <span class="cov8" title="1">freespace.FreeSpace.Databases[database] = db
+
+        freespace.WriteFreeSpace()
 
         return nil</span>
 }
+
+func ProcessAction(action aql.Action, previousIDs []string) ([]map[string]interface{}, error) <span class="cov8" title="1">{
+        switch action.Type </span>{
+        case "GET":<span class="cov8" title="1">
+                parts := strings.Split(action.Identifier, ".")
+                database := parts[0]
+                collection := parts[1]
+                var ids []string
+                var err error
+                if action.Filter.Value != "" </span><span class="cov8" title="1">{
+                        ids, err = ProcessFilter(database, collection, action.Filter)
+                }</span> else<span class="cov8" title="1"> {
+                        ids, err = index.All(database, collection)
+                }</span>
+                <span class="cov8" title="1">if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+                <span class="cov8" title="1">data, err := Read(database, collection, ids)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+                <span class="cov8" title="1">if action.OrderDir == "ASC" </span><span class="cov8" title="1">{
+                        data = doOrderASC(data, action.Order)
+                }</span> else<span class="cov8" title="1"> if action.OrderDir == "DSC" </span><span class="cov8" title="1">{
+                        data = doOrderDSC(data, action.Order)
+                }</span>
+                <span class="cov8" title="1">if action.Limit &gt; 0 &amp;&amp; action.Limit &lt; len(data) </span><span class="cov8" title="1">{
+                        data = data[:action.Limit]
+                }</span>
+                <span class="cov8" title="1">if len(data) &gt; 0 &amp;&amp; len(action.Fields) &gt; 0 </span><span class="cov8" title="1">{
+                        if action.Fields[0] != "*" </span><span class="cov8" title="1">{
+                                keys := make([]string, len(data[0])-len(action.Fields))
+                                i := 0
+                                for k := range data[0] </span><span class="cov8" title="1">{
+                                        if !utils.Contains(action.Fields, k) </span><span class="cov8" title="1">{
+                                                keys[i] = k
+                                                i++
+                                        }</span>
+                                }
+                                <span class="cov8" title="1">for idx, val := range data </span><span class="cov8" title="1">{
+                                        for _, key := range keys </span><span class="cov8" title="1">{
+                                                delete(val, key)
+                                        }</span>
+                                        <span class="cov8" title="1">data[idx] = val</span>
+                                }
+                        }
+                }
+
+                <span class="cov8" title="1">return data, nil</span>
+        case "COUNT":<span class="cov0" title="0">
+                parts := strings.Split(action.Identifier, ".")
+                database := parts[0]
+                collection := parts[1]
+                var ids []string
+                var err error
+                if action.Filter.Value != "" </span><span class="cov0" title="0">{
+                        ids, err = ProcessFilter(database, collection, action.Filter)
+                }</span> else<span class="cov0" title="0"> {
+                        ids, err = index.All(database, collection)
+                }</span>
+                <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+                <span class="cov0" title="0">data, err := Read(database, collection, ids)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+                <span class="cov0" title="0">if action.OrderDir == "ASC" </span><span class="cov0" title="0">{
+                        data = doOrderASC(data, action.Order)
+                }</span> else<span class="cov0" title="0"> if action.OrderDir == "DSC" </span><span class="cov0" title="0">{
+                        data = doOrderDSC(data, action.Order)
+                }</span>
+                <span class="cov0" title="0">if action.Limit &gt; 0 &amp;&amp; action.Limit &lt; len(data) </span><span class="cov0" title="0">{
+                        data = data[:action.Limit]
+                }</span>
+
+                <span class="cov0" title="0">output := []map[string]interface{}{{"count": len(data)}}
+
+                return output, nil</span>
+        case "POST":<span class="cov8" title="1">
+                parts := strings.Split(action.Identifier, ".")
+                database := parts[0]
+                collection := parts[1]
+                err := Write(database, collection, action.Data)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+        case "PUT":<span class="cov8" title="1">
+                parts := strings.Split(action.Identifier, ".")
+                database := parts[0]
+                collection := parts[1]
+                err := OverWrite(database, collection, action.Data)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+        case "PATCH":<span class="cov8" title="1">
+                parts := strings.Split(action.Identifier, ".")
+                database := parts[0]
+                collection := parts[1]
+                if action.IDs[0] != "-" </span><span class="cov8" title="1">{
+                        err := Patch(database, collection, action.IDs, action.Data[0])
+                        if err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+                } else<span class="cov8" title="1"> {
+                        err := Patch(database, collection, previousIDs, action.Data[0])
+                        if err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+                }
+        case "DELETE":<span class="cov8" title="1">
+                parts := strings.Split(action.Identifier, ".")
+                database := parts[0]
+                collection := parts[1]
+                if action.IDs[0] != "-" </span><span class="cov8" title="1">{
+                        err := Delete(database, collection, action.IDs)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+                } else<span class="cov8" title="1"> {
+                        err := Delete(database, collection, previousIDs)
+                        if err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+                }
+        case "DBADD":<span class="cov8" title="1">
+                err := CreateDatabase(action.Identifier)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+        case "DBDEL":<span class="cov8" title="1">
+                err := DeleteDatabase(action.Identifier)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+        case "COLADD":<span class="cov8" title="1">
+                parts := strings.Split(action.Identifier, ".")
+                database := parts[0]
+                collection := parts[1]
+                err := CreateCollection(database, collection, action.Data[0])
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+        case "COLMOD":<span class="cov0" title="0">
+                parts := strings.Split(action.Identifier, ".")
+                database := parts[0]
+                collection := parts[1]
+                err := ModifyCollection(database, collection, action.Data[0])
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+        case "COLDEL":<span class="cov8" title="1">
+                parts := strings.Split(action.Identifier, ".")
+                database := parts[0]
+                collection := parts[1]
+                err := COLDELlection(database, collection)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+        case "USERADD":<span class="cov0" title="0">
+                keys := []string{"username", "password", "role"}
+                for _, key := range keys </span><span class="cov0" title="0">{
+                        if _, ok := action.Data[0][key]; !ok </span><span class="cov0" title="0">{
+                                return nil, errors.New("Invalid user data, required fields are 'username', 'password', and 'role'")
+                        }</span>
+                }
+                <span class="cov0" title="0">hash, err := bcrypt.GenerateFromPassword([]byte(action.Data[0]["password"].(string)), bcrypt.DefaultCost)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+                <span class="cov0" title="0">inputData := []map[string]interface{}{{"username": action.Data[0]["username"].(string), "password": string(hash), "role": action.Data[0]["role"].(string)}}
+                action := aql.Action{Type: "POST", Identifier: "_auth._users", Data: inputData}
+                _, err = ProcessAction(action, []string{})
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+        case "USERMOD":<span class="cov0" title="0">
+                keys := []string{"username", "password", "role"}
+                for _, key := range keys </span><span class="cov0" title="0">{
+                        if _, ok := action.Data[0][key]; !ok </span><span class="cov0" title="0">{
+                                return nil, errors.New("Invalid user data, required fields are 'username', 'password', and 'role'")
+                        }</span>
+                }
+                <span class="cov0" title="0">nodeL := aql.Node{Value: "username"}
+                nodeR := aql.Node{Value: action.Data[0]["username"].(string)}
+                nodeC := aql.Node{Value: "=", Left: &amp;nodeL, Right: &amp;nodeR}
+                getAction := aql.Action{Type: "GET", Identifier: "_auth._users", Filter: nodeC}
+                data, err := ProcessAction(getAction, []string{})
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+                <span class="cov0" title="0">if len(data) != 1 </span><span class="cov0" title="0">{
+                        return nil, errors.New("User does not exist")
+                }</span>
+                <span class="cov0" title="0">data[0]["username"] = action.Data[0]["username"].(string)
+                hash, err := bcrypt.GenerateFromPassword([]byte(action.Data[0]["password"].(string)), bcrypt.DefaultCost)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+                <span class="cov0" title="0">data[0]["password"] = string(hash)
+                data[0]["role"] = action.Data[0]["role"].(string)
+                action := aql.Action{Type: "PUT", Identifier: "_auth._users", Data: data}
+                _, err = ProcessAction(action, []string{})
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+        case "USERDEL":<span class="cov0" title="0">
+                nodeL := aql.Node{Value: "username"}
+                nodeR := aql.Node{Value: action.User}
+                nodeC := aql.Node{Value: "=", Left: &amp;nodeL, Right: &amp;nodeR}
+                getAction := aql.Action{Type: "GET", Identifier: "_auth._users", Filter: nodeC}
+                data, err := ProcessAction(getAction, []string{})
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+                <span class="cov0" title="0">if len(data) != 1 </span><span class="cov0" title="0">{
+                        return nil, errors.New("User does not exist")
+                }</span>
+                <span class="cov0" title="0">database := "_auth"
+                collection := "_users"
+                err = Delete(database, collection, []string{data[0][".id"].(string)})
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+        case "USERGET":<span class="cov0" title="0">
+                if action.User == "*" </span><span class="cov0" title="0">{
+                        getAction := aql.Action{Type: "GET", Identifier: "_auth._users"}
+                        data, err := ProcessAction(getAction, []string{})
+                        for idx, datum := range data </span><span class="cov0" title="0">{
+                                delete(datum, "password")
+                                data[idx] = datum
+                        }</span>
+                        <span class="cov0" title="0">return data, err</span>
+                } else<span class="cov0" title="0"> {
+                        nodeL := aql.Node{Value: "username"}
+                        nodeR := aql.Node{Value: action.User}
+                        nodeC := aql.Node{Value: "=", Left: &amp;nodeL, Right: &amp;nodeR}
+                        getAction := aql.Action{Type: "GET", Identifier: "_auth._users", Filter: nodeC}
+                        data, err := ProcessAction(getAction, []string{})
+                        if err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+                        <span class="cov0" title="0">if len(data) != 1 </span><span class="cov0" title="0">{
+                                return nil, errors.New("User does not exist")
+                        }</span>
+                        <span class="cov0" title="0">for idx, datum := range data </span><span class="cov0" title="0">{
+                                delete(datum, "password")
+                                data[idx] = datum
+                        }</span>
+                        <span class="cov0" title="0">return data, err</span>
+                }
+        case "PERMITADD":<span class="cov0" title="0">
+                keys := []string{"username", "role"}
+                for _, key := range keys </span><span class="cov0" title="0">{
+                        if _, ok := action.Data[0][key]; !ok </span><span class="cov0" title="0">{
+                                return nil, errors.New("Invalid user data, required fields are 'username' and 'role'")
+                        }</span>
+                }
+                <span class="cov0" title="0">inputData := []map[string]interface{}{{"username": action.Data[0]["username"].(string), "role": action.Data[0]["role"].(string)}}
+                action := aql.Action{Type: "POST", Identifier: action.Identifier + "._users", Data: inputData}
+                _, err := ProcessAction(action, []string{})
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+        case "PERMITMOD":<span class="cov0" title="0">
+                keys := []string{"username", "role"}
+                for _, key := range keys </span><span class="cov0" title="0">{
+                        if _, ok := action.Data[0][key]; !ok </span><span class="cov0" title="0">{
+                                return nil, errors.New("Invalid user data, required fields are 'username', 'password', and 'role'")
+                        }</span>
+                }
+                <span class="cov0" title="0">nodeL := aql.Node{Value: "username"}
+                nodeR := aql.Node{Value: action.Data[0]["username"].(string)}
+                nodeC := aql.Node{Value: "=", Left: &amp;nodeL, Right: &amp;nodeR}
+                getAction := aql.Action{Type: "GET", Identifier: action.Identifier + "._users", Filter: nodeC}
+                data, err := ProcessAction(getAction, []string{})
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+                <span class="cov0" title="0">if len(data) != 1 </span><span class="cov0" title="0">{
+                        return nil, errors.New("User does not exist")
+                }</span>
+                <span class="cov0" title="0">data[0]["username"] = action.Data[0]["username"].(string)
+                data[0]["role"] = action.Data[0]["role"].(string)
+                action := aql.Action{Type: "PUT", Identifier: action.Identifier + "._users", Data: data}
+                _, err = ProcessAction(action, []string{})
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+        case "PERMITDEL":<span class="cov0" title="0">
+                nodeL := aql.Node{Value: "username"}
+                nodeR := aql.Node{Value: action.User}
+                nodeC := aql.Node{Value: "=", Left: &amp;nodeL, Right: &amp;nodeR}
+                getAction := aql.Action{Type: "GET", Identifier: action.Identifier + "._users", Filter: nodeC}
+                data, err := ProcessAction(getAction, []string{})
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+                <span class="cov0" title="0">if len(data) != 1 </span><span class="cov0" title="0">{
+                        return nil, errors.New("User does not exist")
+                }</span>
+                <span class="cov0" title="0">database := action.Identifier
+                collection := "_users"
+                err = Delete(database, collection, []string{data[0][".id"].(string)})
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+        case "PERMITGET":<span class="cov0" title="0">
+                if action.User == "*" </span><span class="cov0" title="0">{
+                        getAction := aql.Action{Type: "GET", Identifier: action.Identifier + "._users"}
+                        data, err := ProcessAction(getAction, []string{})
+                        return data, err
+                }</span> else<span class="cov0" title="0"> {
+                        nodeL := aql.Node{Value: "username"}
+                        nodeR := aql.Node{Value: action.User}
+                        nodeC := aql.Node{Value: "=", Left: &amp;nodeL, Right: &amp;nodeR}
+                        getAction := aql.Action{Type: "GET", Identifier: action.Identifier + "._users", Filter: nodeC}
+                        data, err := ProcessAction(getAction, []string{})
+                        if err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+                        <span class="cov0" title="0">if len(data) != 1 </span><span class="cov0" title="0">{
+                                return nil, errors.New("User does not exist")
+                        }</span>
+                        <span class="cov0" title="0">return data, err</span>
+                }
+        }
+        <span class="cov8" title="1">return nil, nil</span>
+}
+
+func doOrderASC(in []map[string]interface{}, key string) []map[string]interface{} <span class="cov8" title="1">{
+        if len(in) &gt; 0 </span><span class="cov8" title="1">{
+                if _, ok := in[0][key].(string); ok </span><span class="cov8" title="1">{
+                        sort.Slice(in, func(i, j int) bool </span><span class="cov8" title="1">{ return in[i][key].(string) &lt; in[j][key].(string) }</span>)
+                } else<span class="cov8" title="1"> if _, ok := in[0][key].(int); ok </span><span class="cov0" title="0">{
+                        sort.Slice(in, func(i, j int) bool </span><span class="cov0" title="0">{ return in[i][key].(int) &lt; in[j][key].(int) }</span>)
+                } else<span class="cov8" title="1"> if _, ok := in[0][key].(float64); ok </span><span class="cov8" title="1">{
+                        sort.Slice(in, func(i, j int) bool </span><span class="cov8" title="1">{ return in[i][key].(float64) &lt; in[j][key].(float64) }</span>)
+                } else<span class="cov0" title="0"> if _, ok := in[0][key].(bool); ok </span><span class="cov0" title="0">{
+                        sort.Slice(in, func(i, j int) bool </span><span class="cov0" title="0">{ return boolToInt(in[i][key].(bool)) &lt; boolToInt(in[j][key].(bool)) }</span>)
+                }
+        }
+        <span class="cov8" title="1">return in</span>
+}
+
+func doOrderDSC(in []map[string]interface{}, key string) []map[string]interface{} <span class="cov8" title="1">{
+        if len(in) &gt; 0 </span><span class="cov8" title="1">{
+                if _, ok := in[0][key].(string); ok </span><span class="cov8" title="1">{
+                        sort.Slice(in, func(i, j int) bool </span><span class="cov8" title="1">{ return in[i][key].(string) &gt; in[j][key].(string) }</span>)
+                } else<span class="cov8" title="1"> if _, ok := in[0][key].(int); ok </span><span class="cov0" title="0">{
+                        sort.Slice(in, func(i, j int) bool </span><span class="cov0" title="0">{ return in[i][key].(int) &gt; in[j][key].(int) }</span>)
+                } else<span class="cov8" title="1"> if _, ok := in[0][key].(float64); ok </span><span class="cov8" title="1">{
+                        sort.Slice(in, func(i, j int) bool </span><span class="cov8" title="1">{ return in[i][key].(float64) &gt; in[j][key].(float64) }</span>)
+                } else<span class="cov0" title="0"> if _, ok := in[0][key].(bool); ok </span><span class="cov0" title="0">{
+                        sort.Slice(in, func(i, j int) bool </span><span class="cov0" title="0">{ return boolToInt(in[i][key].(bool)) &gt; boolToInt(in[j][key].(bool)) }</span>)
+                }
+        }
+        <span class="cov8" title="1">return in</span>
+}
+
+func doAnd(A, B []string) []string <span class="cov8" title="1">{
+        sort.Strings(A)
+        sort.Strings(B)
+        out := make([]string, 0)
+        for idx, val := range A </span><span class="cov8" title="1">{
+                if len(B) == 0 </span><span class="cov8" title="1">{
+                        break</span>
+                }
+                <span class="cov8" title="1">for B[0] &lt; val </span><span class="cov8" title="1">{
+                        B = B[1:]
+                        if len(B) == 0 </span><span class="cov8" title="1">{
+                                break</span>
+                        }
+                }
+                <span class="cov8" title="1">if len(B) &gt; 0 </span><span class="cov8" title="1">{
+                        if B[0] == A[idx] </span><span class="cov8" title="1">{
+                                out = append(out, val)
+                        }</span>
+                }
+        }
+        <span class="cov8" title="1">out = utils.RemoveDuplicateValues(out)
+        return out</span>
+}
+
+func doOr(A, B []string) []string <span class="cov8" title="1">{
+        sort.Strings(A)
+        sort.Strings(B)
+        out := make([]string, 0)
+        for idx, val := range A </span><span class="cov8" title="1">{
+                if len(B) == 0 </span><span class="cov8" title="1">{
+                        out = append(out, A[idx:]...)
+                        break</span>
+                }
+                <span class="cov8" title="1">for B[0] &lt; val </span><span class="cov8" title="1">{
+                        out = append(out, B[0])
+                        B = B[1:]
+                        if len(B) == 0 </span><span class="cov8" title="1">{
+                                out = append(out, A[idx:]...)
+                                break</span>
+                        }
+                }
+                <span class="cov8" title="1">if len(B) &gt; 0 </span><span class="cov8" title="1">{
+                        if B[0] != val </span><span class="cov8" title="1">{
+                                out = append(out, val)
+                        }</span>
+                }
+        }
+        <span class="cov8" title="1">out = append(out, B...)
+        out = utils.RemoveDuplicateValues(out)
+        return out</span>
+}
+
+func doNot(A, B []string) []string <span class="cov8" title="1">{
+        sort.Strings(A)
+        sort.Strings(B)
+        out := make([]string, 0)
+        for idx, val := range A </span><span class="cov8" title="1">{
+                if len(B) == 0 </span><span class="cov8" title="1">{
+                        out = append(out, A[idx:]...)
+                        break</span>
+                }
+                <span class="cov8" title="1">for B[0] &lt; val </span><span class="cov8" title="1">{
+                        B = B[1:]
+                        if len(B) == 0 </span><span class="cov8" title="1">{
+                                out = append(out, A[idx:]...)
+                                break</span>
+                        }
+                }
+                <span class="cov8" title="1">if len(B) &gt; 0 </span><span class="cov8" title="1">{
+                        if B[0] != val </span><span class="cov8" title="1">{
+                                out = append(out, val)
+                        }</span>
+                }
+        }
+        <span class="cov8" title="1">out = utils.RemoveDuplicateValues(out)
+        return out</span>
+}
+
+func doXor(A, B []string) []string <span class="cov8" title="1">{
+        sort.Strings(A)
+        sort.Strings(B)
+        out := make([]string, 0)
+        for idx, val := range A </span><span class="cov8" title="1">{
+                if len(B) == 0 </span><span class="cov8" title="1">{
+                        out = append(out, A[idx:]...)
+                        break</span>
+                }
+                <span class="cov8" title="1">for B[0] &lt; val </span><span class="cov8" title="1">{
+                        out = append(out, B[0])
+                        B = B[1:]
+                        if len(B) == 0 </span><span class="cov0" title="0">{
+                                out = append(out, A[idx:]...)
+                                break</span>
+                        }
+                }
+                <span class="cov8" title="1">if len(B) &gt; 0 </span><span class="cov8" title="1">{
+                        if B[0] == val </span><span class="cov8" title="1">{
+                                B = B[1:]
+                        }</span> else<span class="cov8" title="1"> {
+                                out = append(out, val)
+                        }</span>
+                } else<span class="cov0" title="0"> {
+                        out = append(out, val)
+                }</span>
+        }
+        <span class="cov8" title="1">out = utils.RemoveDuplicateValues(out)
+        return out</span>
+}
+
+func doBoolComparison(left, right bool, operator string) bool <span class="cov8" title="1">{
+        switch operator </span>{
+        case "=":<span class="cov8" title="1">
+                return left == right</span>
+        case "!=":<span class="cov0" title="0">
+                return left != right</span>
+        }
+        <span class="cov0" title="0">return false</span>
+}
+
+func doFloatComparison(left, right float64, operator string) bool <span class="cov8" title="1">{
+        switch operator </span>{
+        case "&gt;":<span class="cov0" title="0">
+                return left &gt; right</span>
+        case "&gt;=":<span class="cov0" title="0">
+                return left &gt;= right</span>
+        case "&lt;":<span class="cov8" title="1">
+                return left &lt; right</span>
+        case "&lt;=":<span class="cov0" title="0">
+                return left &lt;= right</span>
+        case "=":<span class="cov0" title="0">
+                return left == right</span>
+        case "!=":<span class="cov0" title="0">
+                return left != right</span>
+        }
+        <span class="cov0" title="0">return false</span>
+}
+
+func doIntComparison(left, right int, operator string) bool <span class="cov8" title="1">{
+        switch operator </span>{
+        case "&gt;":<span class="cov8" title="1">
+                return left &gt; right</span>
+        case "&gt;=":<span class="cov8" title="1">
+                return left &gt;= right</span>
+        case "&lt;":<span class="cov8" title="1">
+                return left &lt; right</span>
+        case "&lt;=":<span class="cov8" title="1">
+                return left &lt;= right</span>
+        case "=":<span class="cov8" title="1">
+                return left == right</span>
+        case "!=":<span class="cov8" title="1">
+                return left != right</span>
+        }
+        <span class="cov0" title="0">return false</span>
+}
+
+func doStringComparison(left, right string, operator string) bool <span class="cov8" title="1">{
+        switch operator </span>{
+        case "&gt;":<span class="cov0" title="0">
+                return left &gt; right</span>
+        case "&gt;=":<span class="cov0" title="0">
+                return left &gt;= right</span>
+        case "&lt;":<span class="cov8" title="1">
+                return left &lt; right</span>
+        case "&lt;=":<span class="cov0" title="0">
+                return left &lt;= right</span>
+        case "=":<span class="cov0" title="0">
+                return left == right</span>
+        case "!=":<span class="cov0" title="0">
+                return left != right</span>
+        }
+        <span class="cov0" title="0">return false</span>
+}
+
+func boolToInt(boolVal bool) int <span class="cov8" title="1">{
+        if boolVal </span><span class="cov8" title="1">{
+                return 1
+        }</span>
+        <span class="cov8" title="1">return 0</span>
+}
+
+func doFilterBool(database, collection, key string, node aql.Node) ([]string, error) <span class="cov8" title="1">{
+        filePath := filepath.Join(config.Config.IndexDir, database, collection, key)
+        stringValues, _ := filePathWalkDir(filePath)
+        values := make(map[bool]string, 0)
+        keys := make([]bool, 0)
+        for _, value := range stringValues </span><span class="cov8" title="1">{
+                boolVal, _ := strconv.ParseBool(filepath.Base(value))
+                values[boolVal] = value
+                keys = append(keys, boolVal)
+        }</span>
+        <span class="cov8" title="1">sort.Slice(keys, func(i, j int) bool </span><span class="cov8" title="1">{ return boolToInt(keys[i]) &lt; boolToInt(keys[j]) }</span>)
+        <span class="cov8" title="1">output := make([]string, 0)
+        compVal, _ := strconv.ParseBool(node.Right.Value)
+        for _, key := range keys </span><span class="cov8" title="1">{
+                if doBoolComparison(key, compVal, node.Value) </span><span class="cov8" title="1">{
+                        dat, _ := os.ReadFile(values[key])
+                        ids := strings.Split(string(dat), "\n")
+                        ids = ids[:len(ids)-1]
+                        output = append(output, ids...)
+                }</span>
+        }
+        <span class="cov8" title="1">return output, nil</span>
+}
+
+func doFilterFloat(database, collection, key string, node aql.Node) ([]string, error) <span class="cov8" title="1">{
+        filePath := filepath.Join(config.Config.IndexDir, database, collection, key)
+        stringValues, _ := filePathWalkDir(filePath)
+        values := make(map[float64]string, 0)
+        keys := make([]float64, 0)
+        for _, value := range stringValues </span><span class="cov8" title="1">{
+                floatVal, _ := strconv.ParseFloat(filepath.Base(value), 64)
+                values[floatVal] = value
+                keys = append(keys, floatVal)
+        }</span>
+        <span class="cov8" title="1">sort.Float64s(keys)
+        output := make([]string, 0)
+        compVal, _ := strconv.ParseFloat(node.Right.Value, 64)
+        for _, key := range keys </span><span class="cov8" title="1">{
+                if doFloatComparison(key, compVal, node.Value) </span><span class="cov8" title="1">{
+                        dat, _ := os.ReadFile(values[key])
+                        ids := strings.Split(string(dat), "\n")
+                        ids = ids[:len(ids)-1]
+                        output = append(output, ids...)
+                }</span>
+        }
+        <span class="cov8" title="1">return output, nil</span>
+}
+
+func doFilterInt(database, collection, key string, node aql.Node) ([]string, error) <span class="cov8" title="1">{
+        filePath := filepath.Join(config.Config.IndexDir, database, collection, key)
+        stringValues, _ := filePathWalkDir(filePath)
+        values := make(map[int]string, 0)
+        keys := make([]int, 0)
+        for _, value := range stringValues </span><span class="cov8" title="1">{
+                intVal, _ := strconv.Atoi(filepath.Base(value))
+                values[intVal] = value
+                keys = append(keys, intVal)
+        }</span>
+        <span class="cov8" title="1">sort.Ints(keys)
+        output := make([]string, 0)
+        compVal, _ := strconv.Atoi(node.Right.Value)
+        for _, key := range keys </span><span class="cov8" title="1">{
+                if doIntComparison(key, compVal, node.Value) </span><span class="cov8" title="1">{
+                        dat, _ := os.ReadFile(values[key])
+                        ids := strings.Split(string(dat), "\n")
+                        ids = ids[:len(ids)-1]
+                        output = append(output, ids...)
+                }</span>
+        }
+        <span class="cov8" title="1">return output, nil</span>
+}
+
+func doFilterString(database, collection, key string, node aql.Node) ([]string, error) <span class="cov8" title="1">{
+        filePath := filepath.Join(config.Config.IndexDir, database, collection, key)
+        stringValues, _ := filePathWalkDir(filePath)
+        values := make(map[string]string, 0)
+        keys := make([]string, 0)
+        for _, value := range stringValues </span><span class="cov8" title="1">{
+                stringVal := filepath.Base(value)
+                values[stringVal] = value
+                keys = append(keys, stringVal)
+        }</span>
+        <span class="cov8" title="1">sort.Strings(keys)
+        output := make([]string, 0)
+        compVal := node.Right.Value
+        for _, key := range keys </span><span class="cov8" title="1">{
+                if doStringComparison(key, compVal, node.Value) </span><span class="cov8" title="1">{
+                        dat, _ := os.ReadFile(values[key])
+                        ids := strings.Split(string(dat), "\n")
+                        ids = ids[:len(ids)-1]
+                        output = append(output, ids...)
+                }</span>
+        }
+        <span class="cov8" title="1">return output, nil</span>
+}
+
+func doFilter(database, collection string, node aql.Node) ([]string, error) <span class="cov8" title="1">{
+        key := node.Left.Value
+        switch schema.Schema.Databases[database].Collections[collection].Types[key] </span>{
+        case "BOOL":<span class="cov8" title="1">
+                out, err := doFilterBool(database, collection, key, node)
+                return out, err</span>
+        case "INT":<span class="cov8" title="1">
+                out, err := doFilterInt(database, collection, key, node)
+                return out, err</span>
+        case "FLOAT":<span class="cov8" title="1">
+                out, err := doFilterFloat(database, collection, key, node)
+                return out, err</span>
+        case "STRING":<span class="cov8" title="1">
+                out, err := doFilterString(database, collection, key, node)
+                return out, err</span>
+        }
+        <span class="cov0" title="0">return []string{}, nil</span>
+}
+
+func ProcessFilter(database, collection string, node aql.Node) ([]string, error) <span class="cov8" title="1">{
+        switch node.Value </span>{
+        case "&gt;":<span class="cov8" title="1">
+                output, err := doFilter(database, collection, node)
+                return output, err</span>
+        case "&gt;=":<span class="cov8" title="1">
+                output, err := doFilter(database, collection, node)
+                return output, err</span>
+        case "=":<span class="cov8" title="1">
+                output, err := doFilter(database, collection, node)
+                return output, err</span>
+        case "&lt;":<span class="cov8" title="1">
+                output, err := doFilter(database, collection, node)
+                return output, err</span>
+        case "&lt;=":<span class="cov8" title="1">
+                output, err := doFilter(database, collection, node)
+                return output, err</span>
+        case "!=":<span class="cov8" title="1">
+                output, err := doFilter(database, collection, node)
+                return output, err</span>
+        case "AND":<span class="cov8" title="1">
+                left, err := ProcessFilter(database, collection, *node.Left)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+                <span class="cov8" title="1">right, err := ProcessFilter(database, collection, *node.Right)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+                <span class="cov8" title="1">output := doAnd(left, right)
+                return output, nil</span>
+        case "OR":<span class="cov8" title="1">
+                left, err := ProcessFilter(database, collection, *node.Left)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+                <span class="cov8" title="1">right, err := ProcessFilter(database, collection, *node.Right)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+                <span class="cov8" title="1">output := doOr(left, right)
+                return output, nil</span>
+        case "NOT":<span class="cov8" title="1">
+                left, err := index.All(database, collection)
+                right, err := ProcessFilter(database, collection, *node.Right)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+                <span class="cov8" title="1">output := doNot(left, right)
+                return output, nil</span>
+        case "XOR":<span class="cov8" title="1">
+                left, err := ProcessFilter(database, collection, *node.Left)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+                <span class="cov8" title="1">right, err := ProcessFilter(database, collection, *node.Right)
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+                <span class="cov8" title="1">output := doXor(left, right)
+                return output, nil</span>
+        }
+        <span class="cov0" title="0">return nil, nil</span>
+}
+
+func filePathWalkDir(root string) ([]string, error) <span class="cov8" title="1">{
+        var files []string
+        err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error </span><span class="cov8" title="1">{
+                if !info.IsDir() </span><span class="cov8" title="1">{
+                        files = append(files, path)
+                }</span>
+                <span class="cov8" title="1">return nil</span>
+        })
+        <span class="cov8" title="1">return files, err</span>
+}
+
+func CreateDatabase(database string) error <span class="cov8" title="1">{
+        dataPath := filepath.Join(config.Config.DataDir, database)
+        indexPath := filepath.Join(config.Config.IndexDir, database)
+        if err := os.MkdirAll(dataPath, 0755); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">if err := os.MkdirAll(indexPath, 0755); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">freespace.FreeSpace.Databases[database] = freespace.FreeSpaceDatabase{}
+        schema.Schema.Databases[database] = schema.SchemaDatabase{}
+        freespace.WriteFreeSpace()
+        schema.WriteSchema()
+        if database != "_auth" </span><span class="cov8" title="1">{
+                CreateDBAuthCollection(database)
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+
+func DeleteDatabase(database string) error <span class="cov8" title="1">{
+        dataPath := filepath.Join(config.Config.DataDir, database)
+        indexPath := filepath.Join(config.Config.IndexDir, database)
+        if err := os.RemoveAll(dataPath); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">if err := os.RemoveAll(indexPath); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">delete(freespace.FreeSpace.Databases, database)
+        delete(schema.Schema.Databases, database)
+        return nil</span>
+}
+
+func CreateCollection(database, collection string, newSchema map[string]interface{}) error <span class="cov8" title="1">{
+        schemaTypes := make(map[string]string)
+        for k, v := range newSchema </span><span class="cov8" title="1">{
+                schemaTypes[k] = v.(string)
+        }</span>
+        <span class="cov8" title="1">if err := schema.ValidateSchemaCollection(schemaTypes); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">dataPath := filepath.Join(config.Config.DataDir, database, collection)
+        indexPath := filepath.Join(config.Config.IndexDir, database, collection)
+        if err := os.MkdirAll(dataPath, 0755); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">if err := os.MkdirAll(indexPath, 0755); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">allPath := filepath.Join(config.Config.IndexDir, database, collection, "all")
+        os.WriteFile(allPath, []byte(""), 0644)
+        freespaceDB := freespace.FreeSpace.Databases[database]
+        if freespaceDB.Collections == nil </span><span class="cov8" title="1">{
+                freespaceDB.Collections = make(map[string]freespace.FreeSpaceCollection)
+        }</span>
+        <span class="cov8" title="1">freespaceDB.Collections[collection] = freespace.FreeSpaceCollection{}
+        freespace.FreeSpace.Databases[database] = freespaceDB
+        schemaDB := schema.Schema.Databases[database]
+        schemaCol := schema.SchemaCollection{}
+        if schemaDB.Collections == nil </span><span class="cov8" title="1">{
+                schemaDB.Collections = make(map[string]schema.SchemaCollection)
+        }</span>
+        <span class="cov8" title="1">if val, ok := schemaDB.Collections[collection]; ok </span><span class="cov0" title="0">{
+                schemaCol = val
+        }</span>
+        <span class="cov8" title="1">schemaCol.Types = schemaTypes
+        schemaDB.Collections[collection] = schemaCol
+        schema.Schema.Databases[database] = schemaDB
+        freespace.WriteFreeSpace()
+        schema.WriteSchema()
+        return nil</span>
+}
+
+func ModifyCollection(database, collection string, newSchema map[string]interface{}) error <span class="cov0" title="0">{
+        schemaDB := schema.Schema.Databases[database]
+        schemaCol := schema.SchemaCollection{}
+        schemaTypes := make(map[string]string)
+        if schemaDB.Collections == nil </span><span class="cov0" title="0">{
+                schemaDB.Collections = make(map[string]schema.SchemaCollection)
+        }</span>
+        <span class="cov0" title="0">for k, v := range newSchema </span><span class="cov0" title="0">{
+                schemaTypes[k] = v.(string)
+        }</span>
+        <span class="cov0" title="0">if err := schema.ValidateSchemaCollection(schemaTypes); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov0" title="0">schemaCol.Types = schemaTypes
+        schemaDB.Collections[collection] = schemaCol
+        schema.Schema.Databases[database] = schemaDB
+        schema.WriteSchema()
+        return nil</span>
+}
+
+func COLDELlection(database, collection string) error <span class="cov8" title="1">{
+        dataPath := filepath.Join(config.Config.DataDir, database, collection)
+        indexPath := filepath.Join(config.Config.IndexDir, database, collection)
+        if err := os.RemoveAll(dataPath); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">if err := os.RemoveAll(indexPath); err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">freespaceDB := freespace.FreeSpace.Databases[database]
+        delete(freespaceDB.Collections, collection)
+        freespace.FreeSpace.Databases[database] = freespaceDB
+        schemaDB := schema.Schema.Databases[database]
+        delete(schemaDB.Collections, collection)
+        schema.Schema.Databases[database] = schemaDB
+        freespace.WriteFreeSpace()
+        schema.WriteSchema()
+        return nil</span>
+}
+
+func CreateDBAuthCollection(database string) error <span class="cov8" title="1">{
+        CreateCollection(database, "_users", map[string]interface{}{"username": "STRING", "role": "STRING"})
+        inputData := []map[string]interface{}{{"username": "ceres", "role": "ADMIN"}}
+        action := aql.Action{Type: "POST", Identifier: database + "._users", Data: inputData}
+        _, err := ProcessAction(action, []string{})
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
 </pre>
 		
-		<pre class="file" id="file4" style="display: none">// utils.go
+		<pre class="file" id="file6" style="display: none">// schema.go
+
+package schema
+
+import (
+        "ceres/config"
+        "ceres/utils"
+        "encoding/json"
+        "errors"
+        "fmt"
+        "io/ioutil"
+        "os"
+        "path/filepath"
+)
+
+type SchemaCollection struct {
+        Types map[string]string
+}
+
+type SchemaDatabase struct {
+        Collections map[string]SchemaCollection
+}
+
+type SchemaStruct struct {
+        Databases map[string]SchemaDatabase
+}
+
+var Schema SchemaStruct
+
+func LoadSchema() error <span class="cov8" title="1">{
+        path := filepath.Join(config.Config.CeresDir, "schema.json")
+
+        // Open our jsonFile
+        jsonFile, err := os.Open(path)
+
+        // If os.Open returns an error then handle it
+        if err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+
+        // Read and unmarshal the JSON
+        <span class="cov8" title="1">byteValue, _ := ioutil.ReadAll(jsonFile)
+
+        var f interface{}
+
+        // Read the JSON
+        err = json.Unmarshal(byteValue, &amp;f)
+        if err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">itemsMap := f.(map[string]interface{})
+        Schema.Databases = make(map[string]SchemaDatabase)
+
+        // Loop through the top-level items (database names)
+        for dbKey, dbVal := range itemsMap </span><span class="cov8" title="1">{
+                dbItem := SchemaDatabase{}
+                dbItem.Collections = make(map[string]SchemaCollection)
+                dbItemsMap := dbVal.(map[string]interface{})
+
+                // Loop through the 2nd-level items (collection names)
+                for colKey, colVal := range dbItemsMap </span><span class="cov8" title="1">{
+                        colItem := SchemaCollection{}
+                        colItem.Types = make(map[string]string)
+                        colItemsMap := colVal.(map[string]interface{})
+
+                        // Loop through the 3rd-level items (types)
+                        for typeKey, typeVal := range colItemsMap </span><span class="cov8" title="1">{
+                                colItem.Types[typeKey] = typeVal.(string)
+                        }</span>
+
+                        <span class="cov8" title="1">dbItem.Collections[colKey] = colItem</span>
+                }
+                <span class="cov8" title="1">Schema.Databases[dbKey] = dbItem</span>
+        }
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+func WriteSchema() error <span class="cov8" title="1">{
+        path := filepath.Join(config.Config.CeresDir, "schema.json")
+
+        output := make(map[string]interface{})
+        for dbKey, db := range Schema.Databases </span><span class="cov8" title="1">{
+                dbInterface := make(map[string]interface{})
+                for colKey, col := range db.Collections </span><span class="cov8" title="1">{
+                        colInterface := make(map[string]string)
+                        for typeKey, typeVal := range col.Types </span><span class="cov8" title="1">{
+
+                                colInterface[typeKey] = typeVal
+                        }</span>
+                        <span class="cov8" title="1">dbInterface[colKey] = colInterface</span>
+                }
+                <span class="cov8" title="1">output[dbKey] = dbInterface</span>
+        }
+
+        <span class="cov8" title="1">freeSpaceContents, _ := json.MarshalIndent(output, "", "    ")
+        _ = ioutil.WriteFile(path, freeSpaceContents, 0644)
+
+        return nil</span>
+}
+
+func ValidateSchemaCollection(schemaCollection map[string]string) error <span class="cov0" title="0">{
+        validTypes := []string{"INT", "BOOL", "FLOAT", "STRING", "DICT", "LIST"}
+        for _, val := range schemaCollection </span><span class="cov0" title="0">{
+                if !utils.Contains(validTypes, val) </span><span class="cov0" title="0">{
+                        return errors.New(fmt.Sprintf("Invalid schema type: %v, valid types are 'INT', 'BOOL', 'FLOAT', 'STRING', 'DICT', or 'LIST'", val))
+                }</span>
+        }
+        <span class="cov0" title="0">return nil</span>
+}
+
+func ValidateDataAgainstSchema(database, collection string, data []map[string]interface{}) error <span class="cov0" title="0">{
+        schemaCollection := Schema.Databases[database].Collections[collection]
+        for idx, datum := range data </span><span class="cov0" title="0">{
+                for key, val := range datum </span><span class="cov0" title="0">{
+                        if key == ".id" </span><span class="cov0" title="0">{
+                                continue</span>
+                        }
+                        <span class="cov0" title="0">if _, ok := schemaCollection.Types[key]; !ok </span><span class="cov0" title="0">{
+                                return errors.New(fmt.Sprintf("Key does not exist in collection schema: %v", key))
+                        }</span>
+
+                        <span class="cov0" title="0">switch schemaCollection.Types[key] </span>{
+                        case "STRING":<span class="cov0" title="0">
+                                if _, ok := val.(string); !ok </span><span class="cov0" title="0">{
+                                        return errors.New(fmt.Sprintf("Value '%v' at key '%v' in record %v does not conform to schema type %v", val, key, idx, schemaCollection.Types[key]))
+                                }</span>
+                        case "INT":<span class="cov0" title="0">
+                                // To us it's an int value
+                                // But under the hood golang is converting it to a float64 when coming from a JSON
+                                // string
+                                // It won't be an issue since the data gets stored as text anyway
+                                if _, ok := val.(float64); !ok </span><span class="cov0" title="0">{
+                                        if _, ok := val.(int); !ok </span><span class="cov0" title="0">{
+                                                return errors.New(fmt.Sprintf("Value '%v' at key '%v' in record %v does not conform to schema type %v", val, key, idx, schemaCollection.Types[key]))
+                                        }</span>
+                                }
+                        case "FLOAT":<span class="cov0" title="0">
+                                if _, ok := val.(float64); !ok </span><span class="cov0" title="0">{
+                                        return errors.New(fmt.Sprintf("Value '%v' at key '%v' in record %v does not conform to schema type %v", val, key, idx, schemaCollection.Types[key]))
+                                }</span>
+                        case "BOOL":<span class="cov0" title="0">
+                                if _, ok := val.(bool); !ok </span><span class="cov0" title="0">{
+                                        return errors.New(fmt.Sprintf("Value '%v' at key '%v' in record %v does not conform to schema type %v", val, key, idx, schemaCollection.Types[key]))
+                                }</span>
+                        case "DICT":<span class="cov0" title="0">
+                                if _, ok := val.(map[string]interface{}); !ok </span><span class="cov0" title="0">{
+                                        return errors.New(fmt.Sprintf("Value '%v' at key '%v' in record %v does not conform to schema type %v", val, key, idx, schemaCollection.Types[key]))
+                                }</span>
+                        case "LIST":<span class="cov0" title="0">
+                                if _, ok := val.([]interface{}); !ok </span><span class="cov0" title="0">{
+                                        return errors.New(fmt.Sprintf("Value '%v' at key '%v' in record %v does not conform to schema type %v", val, key, idx, schemaCollection.Types[key]))
+                                }</span>
+                        }
+                }
+        }
+        <span class="cov0" title="0">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">// utils.go
 
 package utils
 
@@ -745,6 +2891,31 @@ func ReadLine(r *bufio.Reader) (string, error) <span class="cov8" title="1">{
                 ln = append(ln, line...)
         }</span>
         <span class="cov8" title="1">return string(ln), err</span>
+}
+
+func Contains(s []string, e string) bool <span class="cov8" title="1">{
+        for _, a := range s </span><span class="cov8" title="1">{
+                if a == e </span><span class="cov8" title="1">{
+                        return true
+                }</span>
+        }
+        <span class="cov8" title="1">return false</span>
+}
+
+func RemoveDuplicateValues(stringSlice []string) []string <span class="cov0" title="0">{
+        keys := make(map[string]bool)
+        list := []string{}
+
+        // If the key(values of the slice) is not equal
+        // to the already present value in new slice (list)
+        // then we append it. else we jump on another element.
+        for _, entry := range stringSlice </span><span class="cov0" title="0">{
+                if _, value := keys[entry]; !value </span><span class="cov0" title="0">{
+                        keys[entry] = true
+                        list = append(list, entry)
+                }</span>
+        }
+        <span class="cov0" title="0">return list</span>
 }
 </pre>
 		

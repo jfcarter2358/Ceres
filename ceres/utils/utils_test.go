@@ -41,7 +41,7 @@ func TestBlockSort(t *testing.T) {
 }
 
 func TestReadLine(t *testing.T) {
-	expectedLine := "{\"foo\":\"bar\",\".id\":\"bar-0\"}"
+	expectedLine := "{\"foo\":\"bar\",\".id\":\"bar.0\"}"
 	var expectedError error
 	expectedError = nil
 
@@ -54,5 +54,18 @@ func TestReadLine(t *testing.T) {
 	}
 	if line != expectedLine {
 		t.Errorf("Data was incorrect, got: %v, want: %v", line, expectedLine)
+	}
+}
+
+func TestContains(t *testing.T) {
+	s := []string{"foo", "bar"}
+	containedT := Contains(s, "foo")
+	if containedT != true {
+		t.Errorf("Contained was incorrect, got: %v, want: %v", containedT, true)
+	}
+
+	containedF := Contains(s, "baz")
+	if containedF != false {
+		t.Errorf("Contained was incorrect, got: %v, want: %v", containedF, false)
 	}
 }
