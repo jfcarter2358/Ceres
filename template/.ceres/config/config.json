@@ -1,6 +1,6 @@
 {
     "log-level": "trace",
-    "ceres-dir": ".ceres",
+    "home-dir": ".ceres",
     "data-dir": ".ceres/data",
     "index-dir": ".ceres/indices",
     "storage-line-limit": 16384,

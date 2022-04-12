@@ -1,0 +1,10 @@
+{
+    "db1": {
+        "foo": {
+            "foo": "STRING"
+        },
+        "foo1": {
+            "foo": "STRING"
+        }
+    }
+}

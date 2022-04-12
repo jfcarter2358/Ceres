@@ -1,0 +1,8 @@
+{
+    "log-level": "debug",
+    "home-dir": "../../test/.ceres-schema",
+    "data-dir": "../../test/.ceres-schema/data",
+    "index-dir": "../../test/.ceres-schema/indices",
+    "storage-line-limit": 32,
+    "port": 7437
+}

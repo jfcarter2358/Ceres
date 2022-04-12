@@ -1,6 +1,6 @@
 {
     "log-level": "debug",
-    "ceres-dir": "../test/empty/.ceres",
+    "home-dir": "../test/empty/.ceres",
     "data-dir": "../test/empty/.ceres/data",
     "index-dir": "../test/empty/.ceres/indices",
     "storage-line-limit": 32,

@@ -2,8 +2,11 @@ package auth
 
 import (
 	"ceres/aql"
+	"ceres/collection"
 	"ceres/config"
+	"ceres/database"
 	"ceres/manager"
+	"ceres/record"
 	"ceres/utils"
 	"errors"
 	"io/ioutil"
@@ -24,8 +27,8 @@ func CheckAuthDatabase() error {
 		databases[idx] = db.Name()
 	}
 	if !utils.Contains(databases, "_auth") {
-		manager.CreateDatabase("_auth")
-		manager.CreateCollection("_auth", "_users", map[string]interface{}{"username": "STRING", "password": "STRING", "role": "STRING"})
+		database.Post("_auth")
+		collection.Post("_auth", "_users", map[string]interface{}{"username": "STRING", "password": "STRING", "role": "STRING"})
 		defaultPassword := os.Getenv("CERES_DEFAULT_ADMIN_PASSWORD")
 		if defaultPassword == "" {
 			defaultPassword = "ceres"
@@ -35,8 +38,7 @@ func CheckAuthDatabase() error {
 			return err
 		}
 		inputData := []map[string]interface{}{{"username": "ceres", "password": string(hash), "role": "ADMIN"}}
-		action := aql.Action{Type: "POST", Identifier: "_auth._users", Data: inputData}
-		_, err = manager.ProcessAction(action, []string{})
+		err = record.Post("_auth", "_users", inputData)
 		if err != nil {
 			return err
 		}
@@ -59,12 +61,12 @@ func comparePasswords(hashedPassword string, plainPassword string) bool {
 }
 
 func VerifyUserAction(username, password string, action aql.Action) error {
-	dbLevel := []string{"GET", "COUNT", "POST", "PATCH", "PUT", "DELETE", "FILTER", "LIMIT", "ORDERASC", "ORDERDSC", "DBDEL", "COLADD", "COLDEL", "COLMOD", "PERMITADD", "PERMITDEL", "PERMITMOD", "PERMITGET"}
+	dbLevel := []string{"RECORD", "COLLECTION", "PERMIT"}
 	nodeL := aql.Node{Value: "username"}
 	nodeR := aql.Node{Value: username}
 	nodeC := aql.Node{Value: "=", Left: &nodeL, Right: &nodeR}
-	getAction := aql.Action{Type: "GET", Identifier: "_auth._users", Filter: nodeC}
-	data, err := manager.ProcessAction(getAction, []string{})
+	getAction := aql.Action{Type: "GET", Resource: "USER", Filter: nodeC}
+	data, err := manager.ProcessAction(getAction, []string{}, true)
 	if err != nil {
 		return err
 	}
@@ -76,11 +78,11 @@ func VerifyUserAction(username, password string, action aql.Action) error {
 	}
 	role := data[0]["role"].(string)
 
-	if utils.Contains(dbLevel, action.Type) {
+	if utils.Contains(dbLevel, action.Resource) {
 		parts := strings.Split(action.Identifier, ".")
 		database := parts[0]
-		getAction := aql.Action{Type: "GET", Identifier: database + "._users", Filter: nodeC}
-		data, err = manager.ProcessAction(getAction, []string{})
+		getAction := aql.Action{Type: "GET", Resource: "PERMIT", Identifier: database, Filter: nodeC}
+		data, err = manager.ProcessAction(getAction, []string{}, false)
 		if err != nil {
 			return err
 		}
@@ -89,31 +91,22 @@ func VerifyUserAction(username, password string, action aql.Action) error {
 		}
 		dbRole := data[0]["role"].(string)
 		switch action.Type {
-		case "GET":
-			return nil
 		case "COUNT":
 			return nil
-		case "POST":
-			if !utils.Contains([]string{"WRITE", "ADMIN"}, dbRole) {
-				return errors.New("Access denied")
-			}
-			return nil
-		case "PATCH":
-			if !utils.Contains([]string{"WRITE", "ADMIN"}, dbRole) {
-				return errors.New("Access denied")
-			}
-			return nil
-		case "PUT":
-			if !utils.Contains([]string{"WRITE", "ADMIN"}, dbRole) {
-				return errors.New("Access denied")
-			}
-			return nil
 		case "DELETE":
-			if !utils.Contains([]string{"WRITE", "ADMIN"}, dbRole) {
-				return errors.New("Access denied")
+			if action.Resource == "PERMIT" || action.Resource == "COLLECTION" {
+				if !utils.Contains([]string{"ADMIN"}, dbRole) {
+					return errors.New("Access denied")
+				}
+			} else {
+				if !utils.Contains([]string{"WRITE", "ADMIN"}, dbRole) {
+					return errors.New("Access denied")
+				}
 			}
 			return nil
 		case "FILTER":
+			return nil
+		case "GET":
 			return nil
 		case "LIMIT":
 			return nil
@@ -121,72 +114,96 @@ func VerifyUserAction(username, password string, action aql.Action) error {
 			return nil
 		case "ORDERDSC":
 			return nil
-		case "DBDEL":
-			if !utils.Contains([]string{"ADMIN"}, dbRole) {
-				return errors.New("Access denied")
+		case "PATCH":
+			if action.Resource == "PERMIT" || action.Resource == "COLLECTION" {
+				if !utils.Contains([]string{"ADMIN"}, dbRole) {
+					return errors.New("Access denied")
+				}
+			} else {
+				if !utils.Contains([]string{"WRITE", "ADMIN"}, dbRole) {
+					return errors.New("Access denied")
+				}
 			}
 			return nil
-		case "COLADD":
-			if !utils.Contains([]string{"WRITE", "ADMIN"}, dbRole) {
-				return errors.New("Access denied")
+		case "POST":
+			if action.Resource == "PERMIT" || action.Resource == "COLLECTION" {
+				if !utils.Contains([]string{"ADMIN"}, dbRole) {
+					return errors.New("Access denied")
+				}
+			} else {
+				if !utils.Contains([]string{"WRITE", "ADMIN"}, dbRole) {
+					return errors.New("Access denied")
+				}
 			}
 			return nil
-		case "COLDEL":
-			if !utils.Contains([]string{"ADMIN"}, dbRole) {
-				return errors.New("Access denied")
-			}
-			return nil
-		case "COLMOD":
-			if !utils.Contains([]string{"ADMIN"}, dbRole) {
-				return errors.New("Access denied")
-			}
-			return nil
-		case "PERMITADD":
-			if !utils.Contains([]string{"ADMIN"}, dbRole) {
-				return errors.New("Access denied")
-			}
-			return nil
-		case "PERMITDEL":
-			if !utils.Contains([]string{"ADMIN"}, dbRole) {
-				return errors.New("Access denied")
-			}
-			return nil
-		case "PERMITMOD":
-			if !utils.Contains([]string{"ADMIN"}, dbRole) {
-				return errors.New("Access denied")
-			}
-			return nil
-		case "PERMITGET":
-			if !utils.Contains([]string{"ADMIN"}, dbRole) {
-				return errors.New("Access denied")
+		case "PUT":
+			if action.Resource == "PERMIT" || action.Resource == "COLLECTION" {
+				if !utils.Contains([]string{"ADMIN"}, dbRole) {
+					return errors.New("Access denied")
+				}
+			} else {
+				if !utils.Contains([]string{"WRITE", "ADMIN"}, dbRole) {
+					return errors.New("Access denied")
+				}
 			}
 			return nil
 		}
 	} else {
 		switch action.Type {
-		case "DBADD":
-			if !utils.Contains([]string{"WRITE", "ADMIN"}, role) {
-				return errors.New("Access denied")
+		case "COUNT":
+			return nil
+		case "DELETE":
+			if action.Resource == "USER" {
+				if !utils.Contains([]string{"ADMIN"}, role) {
+					return errors.New("Access denied")
+				}
+			} else {
+				if !utils.Contains([]string{"WRITE", "ADMIN"}, role) {
+					return errors.New("Access denied")
+				}
 			}
 			return nil
-		case "USERADD":
-			if !utils.Contains([]string{"ADMIN"}, role) {
-				return errors.New("Access denied")
+		case "FILTER":
+			return nil
+		case "GET":
+			return nil
+		case "LIMIT":
+			return nil
+		case "ORDERASC":
+			return nil
+		case "ORDERDSC":
+			return nil
+		case "PATCH":
+			if action.Resource == "USER" {
+				if !utils.Contains([]string{"ADMIN"}, role) {
+					return errors.New("Access denied")
+				}
+			} else {
+				if !utils.Contains([]string{"WRITE", "ADMIN"}, role) {
+					return errors.New("Access denied")
+				}
 			}
 			return nil
-		case "USERDEL":
-			if !utils.Contains([]string{"ADMIN"}, role) {
-				return errors.New("Access denied")
+		case "POST":
+			if action.Resource == "USER" {
+				if !utils.Contains([]string{"ADMIN"}, role) {
+					return errors.New("Access denied")
+				}
+			} else {
+				if !utils.Contains([]string{"WRITE", "ADMIN"}, role) {
+					return errors.New("Access denied")
+				}
 			}
 			return nil
-		case "USERMOD":
-			if !utils.Contains([]string{"ADMIN"}, role) {
-				return errors.New("Access denied")
-			}
-			return nil
-		case "USERGET":
-			if !utils.Contains([]string{"ADMIN"}, role) {
-				return errors.New("Access denied")
+		case "PUT":
+			if action.Resource == "USER" {
+				if !utils.Contains([]string{"ADMIN"}, role) {
+					return errors.New("Access denied")
+				}
+			} else {
+				if !utils.Contains([]string{"WRITE", "ADMIN"}, role) {
+					return errors.New("Access denied")
+				}
 			}
 			return nil
 		}
@@ -195,19 +212,24 @@ func VerifyUserAction(username, password string, action aql.Action) error {
 }
 
 func ProtectWrite(action aql.Action) error {
-	if (action.Type == "DBDEL" || action.Type == "DBADD") && action.Identifier == "_auth" {
-		return errors.New("_auth database is protected from direct manipulation")
-	}
-	actions := []string{"COLDEL", "GET", "POST", "PATCH", "PUT", "DELETE"}
-	if utils.Contains(actions, action.Type) {
+	resources := []string{"RECORD", "COLLECTION"}
+	if utils.Contains(resources, action.Resource) {
 		parts := strings.Split(action.Identifier, ".")
-		database := parts[0]
-		collection := parts[1]
-		if database == "_auth" {
+		db := parts[0]
+		if db == "_auth" {
 			return errors.New("_auth database is protected from direct manipulation")
 		}
-		if collection == "_users" {
-			return errors.New("_users collection is protected from direct manipulation")
+		if len(parts) > 1 {
+			col := parts[1]
+			if col == "_users" {
+				return errors.New("_users collection is protected from direct manipulation")
+			}
+		}
+	}
+	resources = []string{"DATABASE", "PERMIT"}
+	if utils.Contains(resources, action.Resource) {
+		if action.Identifier == "_auth" {
+			return errors.New("_auth database is protected from direct manipulation")
 		}
 	}
 	return nil

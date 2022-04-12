@@ -19,7 +19,7 @@ import (
 )
 
 func Test_readData(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
 	blocks := [][]int{{1, 2}, {4, 4}, {6, 11}}
@@ -45,7 +45,7 @@ func Test_readData(t *testing.T) {
 }
 
 func Test_readNoFile(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
 	blocks := [][]int{{1, 2}, {4, 4}, {6, 11}}
@@ -65,7 +65,7 @@ func Test_readNoFile(t *testing.T) {
 }
 
 func Test_readBadContents(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
 	blocks := [][]int{{0, 2}, {4, 4}, {6, 11}}
@@ -85,7 +85,7 @@ func Test_readBadContents(t *testing.T) {
 }
 
 func Test_writeData(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
 	blocks := [][]int{{20, 22}, {24, 25}}
@@ -112,7 +112,7 @@ func Test_writeData(t *testing.T) {
 }
 
 func Test_writeNoFile(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
 	blocks := [][]int{{1, 2}, {4, 4}, {6, 11}}
@@ -128,7 +128,7 @@ func Test_writeNoFile(t *testing.T) {
 }
 
 func Test_writeBadContents(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
 	blocks := [][]int{{20, 22}, {24, 25}}
@@ -149,7 +149,7 @@ func Test_writeBadContents(t *testing.T) {
 }
 
 func Test_deleteData(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
 	blocks := [][]int{{20, 22}, {24, 25}}
@@ -170,7 +170,7 @@ func Test_deleteData(t *testing.T) {
 }
 
 func Test_deleteNoFile(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
 	blocks := [][]int{{20, 22}, {24, 25}}
@@ -185,7 +185,7 @@ func Test_deleteNoFile(t *testing.T) {
 }
 
 func TestRead(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
 	ids := []string{"bar.1", "bar.2", "bar.4", "bar.6", "bar.7", "bar.8", "bar.9", "bar.10", "bar.11"}
@@ -210,7 +210,7 @@ func TestRead(t *testing.T) {
 }
 
 func TestReadNoFile(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
 	ids := []string{"bar12345.1", "bar.2", "bar.4", "bar.6", "bar.7", "bar.8", "bar.9", "bar.10", "bar.11"}
@@ -230,7 +230,7 @@ func TestReadNoFile(t *testing.T) {
 }
 
 func TestWrite(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -258,7 +258,7 @@ func TestWrite(t *testing.T) {
 }
 
 func TestWriteBadContents(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -280,7 +280,7 @@ func TestWriteBadContents(t *testing.T) {
 }
 
 func TestWriteOverflow(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -307,7 +307,7 @@ func TestWriteOverflow(t *testing.T) {
 }
 
 func TestPatch(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -331,7 +331,7 @@ func TestPatch(t *testing.T) {
 }
 
 func TestOverWrite(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -354,7 +354,7 @@ func TestOverWrite(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -377,7 +377,7 @@ func TestDelete(t *testing.T) {
 }
 
 func TestDeleteNoFile(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
 	ids := []string{"bar12345.20", "bar.21", "bar.22", "bar.23", "bar.24", "bar.25", "bar.26", "bar.27", "bar.28", "bar.29", "bar.30", "bar.31"}
@@ -454,7 +454,7 @@ func TestDoOrderDSC(t *testing.T) {
 }
 
 func TestProcessFilterBool(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -486,7 +486,7 @@ func TestProcessFilterBool(t *testing.T) {
 }
 
 func TestProcessFilterFloat(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -518,7 +518,7 @@ func TestProcessFilterFloat(t *testing.T) {
 }
 
 func TestProcessFilterString(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -550,7 +550,7 @@ func TestProcessFilterString(t *testing.T) {
 }
 
 func TestProcessFilterGT(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -582,7 +582,7 @@ func TestProcessFilterGT(t *testing.T) {
 }
 
 func TestProcessFilterGE(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -614,7 +614,7 @@ func TestProcessFilterGE(t *testing.T) {
 }
 
 func TestProcessFilterLT(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -646,7 +646,7 @@ func TestProcessFilterLT(t *testing.T) {
 }
 
 func TestProcessFilterLE(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -678,7 +678,7 @@ func TestProcessFilterLE(t *testing.T) {
 }
 
 func TestProcessFilterEQ(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -710,7 +710,7 @@ func TestProcessFilterEQ(t *testing.T) {
 }
 
 func TestProcessFilterNE(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -742,7 +742,7 @@ func TestProcessFilterNE(t *testing.T) {
 }
 
 func TestProcessFilterAND(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -778,7 +778,7 @@ func TestProcessFilterAND(t *testing.T) {
 }
 
 func TestProcessFilterOR(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -814,7 +814,7 @@ func TestProcessFilterOR(t *testing.T) {
 }
 
 func TestProcessFilterXOR(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -850,7 +850,7 @@ func TestProcessFilterXOR(t *testing.T) {
 }
 
 func TestProcessFilterNOT(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -883,7 +883,7 @@ func TestProcessFilterNOT(t *testing.T) {
 }
 
 func TestProcessActionCreateDB(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -908,7 +908,7 @@ func TestProcessActionCreateDB(t *testing.T) {
 }
 
 func TestProcessActionCreateCOL(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -933,7 +933,7 @@ func TestProcessActionCreateCOL(t *testing.T) {
 }
 
 func TestProcessActionDBDEL(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -958,7 +958,7 @@ func TestProcessActionDBDEL(t *testing.T) {
 }
 
 func TestProcessActionCOLDEL(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -986,7 +986,7 @@ func TestProcessActionCOLDEL(t *testing.T) {
 }
 
 func TestProcessActionGET(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -1044,7 +1044,7 @@ func TestProcessActionGET(t *testing.T) {
 }
 
 func TestProcessActionPOST(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -1073,7 +1073,7 @@ func TestProcessActionPOST(t *testing.T) {
 }
 
 func TestProcessActionPUT(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -1112,7 +1112,7 @@ func TestProcessActionPUT(t *testing.T) {
 }
 
 func TestProcessActionPATCH(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
@@ -1169,7 +1169,7 @@ func TestProcessActionPATCH(t *testing.T) {
 }
 
 func TestProcessActionDELETE(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()

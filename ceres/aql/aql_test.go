@@ -82,25 +82,35 @@ func TestDetermineType(t *testing.T) {
 	if tok.Type != "DELETE" {
 		t.Errorf("Token type was incorrect, got: %v, want: %v", tok.Type, "DELETE")
 	}
-	value = "DBADD"
+	value = "COUNT"
 	determineType(value, &tok)
-	if tok.Type != "DBADD" {
-		t.Errorf("Token type was incorrect, got: %v, want: %v", tok.Type, "DBADD")
+	if tok.Type != "COUNT" {
+		t.Errorf("Token type was incorrect, got: %v, want: %v", tok.Type, "COUNT")
 	}
-	value = "COLADD"
+	value = "RECORD"
 	determineType(value, &tok)
-	if tok.Type != "COLADD" {
-		t.Errorf("Token type was incorrect, got: %v, want: %v", tok.Type, "COLADD")
+	if tok.Type != "RESOURCE" {
+		t.Errorf("Token type was incorrect, got: %v, want: %v", tok.Type, "RESOURCE")
 	}
-	value = "DBDEL"
+	value = "DATABASE"
 	determineType(value, &tok)
-	if tok.Type != "DBDEL" {
-		t.Errorf("Token type was incorrect, got: %v, want: %v", tok.Type, "DBDEL")
+	if tok.Type != "RESOURCE" {
+		t.Errorf("Token type was incorrect, got: %v, want: %v", tok.Type, "RESOURCE")
 	}
-	value = "COLDEL"
+	value = "COLLECTION"
 	determineType(value, &tok)
-	if tok.Type != "COLDEL" {
-		t.Errorf("Token type was incorrect, got: %v, want: %v", tok.Type, "COLDEL")
+	if tok.Type != "RESOURCE" {
+		t.Errorf("Token type was incorrect, got: %v, want: %v", tok.Type, "RESOURCE")
+	}
+	value = "USER"
+	determineType(value, &tok)
+	if tok.Type != "RESOURCE" {
+		t.Errorf("Token type was incorrect, got: %v, want: %v", tok.Type, "RESOURCE")
+	}
+	value = "PERMIT"
+	determineType(value, &tok)
+	if tok.Type != "RESOURCE" {
+		t.Errorf("Token type was incorrect, got: %v, want: %v", tok.Type, "RESOURCE")
 	}
 	value = "LIMIT"
 	determineType(value, &tok)
@@ -197,6 +207,11 @@ func TestDetermineType(t *testing.T) {
 	if tok.Type != "DICT" {
 		t.Errorf("Token type was incorrect, got: %v, want: %v", tok.Type, "DICT")
 	}
+	value = "(nested)"
+	determineType(value, &tok)
+	if tok.Type != "NESTED" {
+		t.Errorf("Token type was incorrect, got: %v, want: %v", tok.Type, "NESTED")
+	}
 	value = "1234"
 	determineType(value, &tok)
 	if tok.Type != "INT" {
@@ -230,58 +245,44 @@ func TestDetermineType(t *testing.T) {
 }
 
 func TestGetPatterns(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
-	expectedData := "GET IDENTIFIER(?: WILDCARD|LIST|STRING)?"
+	expectedData := "^FILTER (?:LOGIC )?(?:(?:(?:LOGIC )?FIELD OP (?:STRING|INT|FLOAT|BOOL))|NESTED)(?: (?:LOGIC (?:LOGIC )?FIELD OP (?:STRING|INT|FLOAT|BOOL))|NESTED)*$"
 	var expectedError error
 	expectedError = nil
 
 	patterns, err := getPatterns()
 
-	if patterns["GET"] != expectedData {
-		t.Errorf("Pattern was incorrect, got: %v, want: %v", patterns["GET"], expectedData)
+	if patterns["FILTER"] != expectedData {
+		t.Errorf("Pattern was incorrect, got: %v, want: %v", patterns["FILTER"], expectedData)
 	}
 	if err != expectedError {
 		t.Errorf("Error was incorrect, got: %v, want %v", err, expectedError)
 	}
-}
 
-func TestGetPatternsErr1(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config-no-aql.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config-no-aql.json")
 	config.ReadConfigFile()
 
-	var expectedData map[string]string
-	expectedData = nil
-	var expectedError error
-	expectedError = &os.PathError{}
+	var expectedError1 error
+	expectedError1 = &os.PathError{}
 
-	patterns, err := getPatterns()
+	_, err1 := getPatterns()
 
-	if !reflect.DeepEqual(patterns, expectedData) {
-		t.Errorf("Pattern was incorrect, got: %v, want: %v", patterns, expectedData)
+	if !errors.As(err1, &expectedError1) {
+		t.Errorf("Error was incorrect, got: %v, want %v", err1, expectedError1)
 	}
-	if !errors.As(err, &expectedError) {
-		t.Errorf("Error was incorrect, got: %v, want %v", err, expectedError)
-	}
-}
 
-func TestGetPatternsErr2(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres-bad-aql/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres-bad-aql/config/config.json")
 	config.ReadConfigFile()
 
-	var expectedData map[string]string
-	expectedData = nil
-	var expectedError error
-	expectedError = &json.SyntaxError{}
+	var expectedError2 error
+	expectedError2 = &json.SyntaxError{}
 
-	patterns, err := getPatterns()
+	_, err2 := getPatterns()
 
-	if !reflect.DeepEqual(patterns, expectedData) {
-		t.Errorf("Pattern was incorrect, got: %v, want: %v", patterns, expectedData)
-	}
-	if !errors.As(err, &expectedError) {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
+	if !errors.As(err2, &expectedError2) {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err2, expectedError2)
 	}
 }
 
@@ -290,12 +291,10 @@ func TestCheckPattern(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error was incorrect, got: %v, want: %v", err, nil)
 	}
-}
 
-func TestCheckPatternErr(t *testing.T) {
-	err := checkPattern("boo bar", "[f]oo bar", "[f]oo bar")
-	if err == nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, nil)
+	err1 := checkPattern("boo bar", "[f]oo bar", "[f]oo bar")
+	if err1 == nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err1, nil)
 	}
 }
 
@@ -305,6 +304,34 @@ func TestHandleConditionals(t *testing.T) {
 
 	if node.Value != "AND" {
 		t.Errorf("Incorrect node value, got: %v, want: %v", node.Value, "AND")
+	}
+
+	tokens1 := []Token{{Type: "STRING", Value: "foobar"}, {Type: "OP", Value: ">"}, {Type: "STRING", Value: "foobar"}}
+	node1 := handleConditionals(tokens1)
+
+	if node1.Value != ">" {
+		t.Errorf("Incorrect node value, got: %v, want: %v", node1.Value, ">")
+	}
+
+	tokens2 := []Token{{Type: "STRING", Value: "baz"}, {Type: "LOGIC", Value: "AND"}, {Type: "NESTED", Value: "(foo > bar)"}}
+	node2 := handleConditionals(tokens2)
+
+	if node2.Value != "AND" {
+		t.Errorf("Incorrect node value, got: %v, want: %v", node2.Value, "AND")
+	}
+
+	tokens3 := []Token{{Type: "STRING", Value: "foo"}, {Type: "OP", Value: ">"}, {Type: "STRING", Value: "bar"}, {Type: "LOGIC", Value: "AND"}, {Type: "STRING", Value: "foo"}, {Type: "OP", Value: ">"}, {Type: "STRING", Value: "baz"}}
+	node3 := handleConditionals(tokens3)
+
+	if node3.Value != "AND" {
+		t.Errorf("Incorrect node value, got: %v, want: %v", node3.Value, "AND")
+	}
+
+	tokens4 := []Token{{Type: "NESTED", Value: "(foo > bar)"}, {Type: "LOGIC", Value: "AND"}, {Type: "STRING", Value: "foo"}, {Type: "OP", Value: ">"}, {Type: "STRING", Value: "bar"}}
+	node4 := handleConditionals(tokens4)
+
+	if node4.Value != "AND" {
+		t.Errorf("Incorrect node value, got: %v, want: %v", node4.Value, "AND")
 	}
 }
 
@@ -323,23 +350,21 @@ func TestHandleDataList(t *testing.T) {
 	if err != expectedError {
 		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
 	}
-}
 
-func TestHandleDataListErr(t *testing.T) {
-	var action Action
-	var expectedData []map[string]interface{}
-	expectedData = nil
-	var expectedError error
-	expectedError = &json.SyntaxError{}
+	var action1 Action
+	var expectedData1 []map[string]interface{}
+	expectedData1 = nil
+	var expectedError1 error
+	expectedError1 = &json.SyntaxError{}
 
-	token := Token{Type: "LIST", Value: "[{\"foo\":\"bar\"}"}
-	err := handleData(token, &action)
+	token1 := Token{Type: "LIST", Value: "[{\"foo\":\"bar\"}"}
+	err1 := handleData(token1, &action1)
 
-	if !reflect.DeepEqual(action.Data, expectedData) {
-		t.Errorf("Data was incorrect, got: %v, want: %v", action.Data, expectedData)
+	if !reflect.DeepEqual(action1.Data, expectedData1) {
+		t.Errorf("Data was incorrect, got: %v, want: %v", action1.Data, expectedData1)
 	}
-	if !errors.As(err, &expectedError) {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
+	if !errors.As(err1, &expectedError1) {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err1, expectedError1)
 	}
 }
 
@@ -358,23 +383,21 @@ func TestHandleDataDict(t *testing.T) {
 	if err != expectedError {
 		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
 	}
-}
 
-func TestHandleDataDictErr(t *testing.T) {
-	var action Action
-	var expectedData []map[string]interface{}
-	expectedData = nil
-	var expectedError error
-	expectedError = &json.SyntaxError{}
+	var action1 Action
+	var expectedData1 []map[string]interface{}
+	expectedData1 = nil
+	var expectedError1 error
+	expectedError1 = &json.SyntaxError{}
 
-	token := Token{Type: "DICT", Value: "{\"foo\":\"bar\""}
-	err := handleData(token, &action)
+	token1 := Token{Type: "DICT", Value: "{\"foo\":\"bar\""}
+	err1 := handleData(token1, &action1)
 
-	if !reflect.DeepEqual(action.Data, expectedData) {
-		t.Errorf("Data was incorrect, got: %v, want: %v", action.Data, expectedData)
+	if !reflect.DeepEqual(action1.Data, expectedData1) {
+		t.Errorf("Data was incorrect, got: %v, want: %v", action1.Data, expectedData1)
 	}
-	if !errors.As(err, &expectedError) {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
+	if !errors.As(err1, &expectedError1) {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err1, expectedError1)
 	}
 }
 
@@ -393,23 +416,21 @@ func TestHandleIdsList(t *testing.T) {
 	if err != expectedError {
 		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
 	}
-}
 
-func TestHandleIDsListErr(t *testing.T) {
-	var action Action
-	var expectedData []string
-	expectedData = nil
-	var expectedError error
-	expectedError = &json.SyntaxError{}
+	var action1 Action
+	var expectedData1 []string
+	expectedData1 = nil
+	var expectedError1 error
+	expectedError1 = &json.SyntaxError{}
 
-	token := Token{Type: "LIST", Value: "[\"foo\",\"bar\""}
-	err := handleIDs(token, &action)
+	token1 := Token{Type: "LIST", Value: "[\"foo\",\"bar\""}
+	err1 := handleIDs(token1, &action1)
 
-	if !reflect.DeepEqual(action.IDs, expectedData) {
-		t.Errorf("Data was incorrect, got: %v, want: %v", action.IDs, expectedData)
+	if !reflect.DeepEqual(action1.IDs, expectedData1) {
+		t.Errorf("Data was incorrect, got: %v, want: %v", action1.IDs, expectedData1)
 	}
-	if !errors.As(err, &expectedError) {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
+	if !errors.As(err1, &expectedError1) {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err1, expectedError1)
 	}
 }
 
@@ -430,7 +451,7 @@ func TestHandleIDsString(t *testing.T) {
 	}
 }
 
-func TestHandleFieldsList(t *testing.T) {
+func TestHandleFields(t *testing.T) {
 	var action Action
 	expectedData := []string{"foo", "bar"}
 	var expectedError error
@@ -445,516 +466,598 @@ func TestHandleFieldsList(t *testing.T) {
 	if err != expectedError {
 		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
 	}
-}
 
-func TestHandleFieldsListErr(t *testing.T) {
-	var action Action
-	var expectedData []string
-	expectedData = nil
-	var expectedError error
-	expectedError = &json.SyntaxError{}
+	var action1 Action
+	var expectedData1 []string
+	expectedData1 = nil
+	var expectedError1 error
+	expectedError1 = &json.SyntaxError{}
 
-	token := Token{Type: "LIST", Value: "[\"foo\",\"bar\""}
-	err := handleFields(token, &action)
+	token1 := Token{Type: "LIST", Value: "[\"foo\",\"bar\""}
+	err1 := handleFields(token1, &action1)
 
-	if !reflect.DeepEqual(action.Fields, expectedData) {
-		t.Errorf("Data was incorrect, got: %v, want: %v", action.Fields, expectedData)
+	if !reflect.DeepEqual(action1.Fields, expectedData1) {
+		t.Errorf("Data was incorrect, got: %v, want: %v", action1.Fields, expectedData1)
 	}
-	if !errors.As(err, &expectedError) {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
+	if !errors.As(err1, &expectedError1) {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err1, expectedError1)
 	}
-}
 
-func TestHandleFieldsString(t *testing.T) {
-	var action Action
-	expectedData := []string{"foo"}
-	var expectedError error
-	expectedError = nil
+	var action2 Action
+	expectedData2 := []string{"foo"}
+	var expectedError2 error
+	expectedError2 = nil
 
-	token := Token{Type: "STRING", Value: "foo"}
-	err := handleFields(token, &action)
+	token2 := Token{Type: "STRING", Value: "foo"}
+	err2 := handleFields(token2, &action2)
 
-	if !reflect.DeepEqual(action.Fields, expectedData) {
-		t.Errorf("Data was incorrect, got: %v, want: %v", action.Fields, expectedData)
+	if !reflect.DeepEqual(action2.Fields, expectedData2) {
+		t.Errorf("Data was incorrect, got: %v, want: %v", action2.Fields, expectedData2)
 	}
-	if err != expectedError {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
+	if err2 != expectedError2 {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err2, expectedError2)
 	}
 }
 
-func TestBuildActionsGet(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+func TestBuildActions(t *testing.T) {
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 	patterns, _ := getPatterns()
 
-	var expectedError error
-	expectedError = nil
-
-	tokens := []Token{{Type: "GET", Value: "GET"}, {Type: "IDENTIFIER", Value: "db.col"}, {Type: "WILDCARD", Value: "*"}, {Type: "PIPE", Value: "|"}, {Type: "GET", Value: "GET"}, {Type: "IDENTIFIER", Value: "db.col"}, {Type: "WILDCARD", Value: "*"}}
-
-	_, err := buildActions(tokens, patterns)
-	if err != expectedError {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
+	tokens := []Token{
+		{Type: "DELETE", Value: "DELETE"},
+		{Type: "RESOURCE", Value: "RECORD"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "DASH", Value: "-"},
+		{Type: "PIPE", Value: "|"},
+		{Type: "DELETE", Value: "DELETE"},
+		{Type: "RESOURCE", Value: "RECORD"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "DASH", Value: "-"},
 	}
-}
-
-func TestBuildActionsGetErr1(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
-
-	tokens := []Token{{Type: "GET", Value: "GET"}, {Type: "STRING", Value: "level"}}
 
 	_, err := buildActions(tokens, patterns)
+	if err != nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<nil>")
+	}
+
+	tokens = []Token{
+		{Type: "DELETE", Value: "DELETE"},
+		{Type: "RESOURCE", Value: "FOOBAR"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "LIST", Value: "[\"foo\",\"bar\"]"},
+	}
+
+	_, err = buildActions(tokens, patterns)
 	if err == nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, "error")
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
 	}
-}
 
-func TestBuildActionsGetErr2(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
+	tokens = []Token{
+		{Type: "DELETE", Value: "DELETE"},
+		{Type: "RESOURCE", Value: "RECORD"},
+		{Type: "INT", Value: "10"},
+		{Type: "LIST", Value: "[\"foo\",\"bar\"]"},
+	}
 
-	tokens := []Token{{Type: "GET", Value: "GET"}, {Type: "IDENTIFIER", Value: "db.col"}, {Type: "LIST", Value: "[\"foo\",\"bar\""}}
-
-	_, err := buildActions(tokens, patterns)
+	_, err = buildActions(tokens, patterns)
 	if err == nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, "error")
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
 	}
-}
 
-func TestBuildActionsPost(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
-
-	var expectedError error
-	expectedError = nil
-
-	tokens := []Token{{Type: "POST", Value: "POST"}, {Type: "IDENTIFIER", Value: "db.col"}, {Type: "DICT", Value: "{\"foo\":\"bar\"}"}, {Type: "PIPE", Value: "|"}, {Type: "POST", Value: "POST"}, {Type: "IDENTIFIER", Value: "db.col"}, {Type: "DICT", Value: "{\"foo\":\"bar\"}"}}
-
-	_, err := buildActions(tokens, patterns)
-	if err != expectedError {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
+	tokens = []Token{
+		{Type: "DELETE", Value: "DELETE"},
+		{Type: "RESOURCE", Value: "USER"},
+		{Type: "LIST", Value: "[\"foo\",\"bar\"]"},
 	}
-}
 
-func TestBuildActionsPostErr1(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
+	_, err = buildActions(tokens, patterns)
+	if err != nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<nil>")
+	}
 
-	tokens := []Token{{Type: "POST", Value: "POST"}, {Type: "STRING", Value: "level"}}
+	tokens = []Token{
+		{Type: "DELETE", Value: "DELETE"},
+		{Type: "RESOURCE", Value: "RECORD"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "LIST", Value: "[\"foo\",\"bar\""},
+	}
 
-	_, err := buildActions(tokens, patterns)
+	_, err = buildActions(tokens, patterns)
 	if err == nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, "error")
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
 	}
-}
 
-func TestBuildActionsPostErr2(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
+	tokens = []Token{
+		{Type: "DELETE", Value: "DELETE"},
+		{Type: "RESOURCE", Value: "USER"},
+		{Type: "LIST", Value: "[\"foo\",\"bar\""},
+	}
 
-	tokens := []Token{{Type: "POST", Value: "POST"}, {Type: "IDENTIFIER", Value: "db.col"}, {Type: "LIST", Value: "[{\"foo\":\"bar\""}}
-
-	_, err := buildActions(tokens, patterns)
+	_, err = buildActions(tokens, patterns)
 	if err == nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, "error")
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
 	}
-}
 
-func TestBuildActionsPut(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
-
-	var expectedError error
-	expectedError = nil
-
-	tokens := []Token{{Type: "PUT", Value: "PUT"}, {Type: "IDENTIFIER", Value: "db.col"}, {Type: "DICT", Value: "{\"foo\":\"bar\"}"}, {Type: "PIPE", Value: "|"}, {Type: "PUT", Value: "PUT"}, {Type: "IDENTIFIER", Value: "db.col"}, {Type: "DICT", Value: "{\"foo\":\"bar\"}"}}
-
-	_, err := buildActions(tokens, patterns)
-	if err != expectedError {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
+	tokens = []Token{
+		{Type: "GET", Value: "GET"},
+		{Type: "RESOURCE", Value: "RECORD"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "WILDCARD", Value: "*"},
+		{Type: "PIPE", Value: "|"},
+		{Type: "GET", Value: "GET"},
+		{Type: "RESOURCE", Value: "RECORD"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "WILDCARD", Value: "*"},
 	}
-}
 
-func TestBuildActionsPutErr1(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
+	_, err = buildActions(tokens, patterns)
+	if err != nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<nil>")
+	}
 
-	tokens := []Token{{Type: "PUT", Value: "PUT"}, {Type: "STRING", Value: "level"}}
+	tokens = []Token{
+		{Type: "GET", Value: "GET"},
+		{Type: "RESOURCE", Value: "FOOBAR"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "WILDCARD", Value: "*"},
+	}
 
-	_, err := buildActions(tokens, patterns)
+	_, err = buildActions(tokens, patterns)
 	if err == nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, "error")
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
 	}
-}
 
-func TestBuildActionsPutErr2(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
+	tokens = []Token{
+		{Type: "GET", Value: "GET"},
+		{Type: "RESOURCE", Value: "RECORD"},
+		{Type: "INT", Value: "10"},
+		{Type: "WILDCARD", Value: "*"},
+	}
 
-	tokens := []Token{{Type: "PUT", Value: "PUT"}, {Type: "IDENTIFIER", Value: "db.col"}, {Type: "LIST", Value: "[{\"foo\":\"bar\""}}
-
-	_, err := buildActions(tokens, patterns)
+	_, err = buildActions(tokens, patterns)
 	if err == nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, "error")
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
 	}
-}
 
-func TestBuildActionsPatch(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
-
-	var expectedError error
-	expectedError = nil
-
-	tokens := []Token{{Type: "PATCH", Value: "PATCH"}, {Type: "IDENTIFIER", Value: "db.col"}, {Type: "DASH", Value: "-"}, {Type: "DICT", Value: "{\"foo\":\"bar\"}"}, {Type: "PIPE", Value: "|"}, {Type: "PATCH", Value: "PATCH"}, {Type: "IDENTIFIER", Value: "db.col"}, {Type: "DASH", Value: "-"}, {Type: "DICT", Value: "{\"foo\":\"bar\"}"}}
-
-	_, err := buildActions(tokens, patterns)
-	if err != expectedError {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
+	tokens = []Token{
+		{Type: "GET", Value: "GET"},
+		{Type: "RESOURCE", Value: "USER"},
+		{Type: "WILDCARD", Value: "*"},
 	}
-}
 
-func TestBuildActionsPatchErr1(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
+	_, err = buildActions(tokens, patterns)
+	if err != nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<nil>")
+	}
 
-	tokens := []Token{{Type: "PATCH", Value: "PATCH"}, {Type: "STRING", Value: "level"}}
+	tokens = []Token{
+		{Type: "GET", Value: "GET"},
+		{Type: "RESOURCE", Value: "RECORD"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "LIST", Value: "[\"foo\",\""},
+	}
 
-	_, err := buildActions(tokens, patterns)
+	_, err = buildActions(tokens, patterns)
 	if err == nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, "error")
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
 	}
-}
 
-func TestBuildActionsPatchErr2(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
+	tokens = []Token{
+		{Type: "GET", Value: "GET"},
+		{Type: "RESOURCE", Value: "USER"},
+		{Type: "LIST", Value: "[\"foo\",\""},
+	}
 
-	tokens := []Token{{Type: "PATCH", Value: "PATCH"}, {Type: "IDENTIFIER", Value: "db.col"}, {Type: "LIST", Value: "[\"foo\",\"bar\""}, {Type: "LIST", Value: "[{\"foo\":\"bar\"}]"}}
-
-	_, err := buildActions(tokens, patterns)
+	_, err = buildActions(tokens, patterns)
 	if err == nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, "error")
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
 	}
-}
 
-func TestBuildActionsPatchErr3(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
+	tokens = []Token{
+		{Type: "PATCH", Value: "PATCH"},
+		{Type: "RESOURCE", Value: "RECORD"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "DASH", Value: "-"},
+		{Type: "DICT", Value: "{\"foo\":\"bar\"}"},
+		{Type: "PIPE", Value: "|"},
+		{Type: "PATCH", Value: "PATCH"},
+		{Type: "RESOURCE", Value: "RECORD"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "DASH", Value: "-"},
+		{Type: "DICT", Value: "{\"foo\":\"bar\"}"},
+	}
 
-	tokens := []Token{{Type: "PATCH", Value: "PATCH"}, {Type: "IDENTIFIER", Value: "db.col"}, {Type: "LIST", Value: "[\"foo\",\"bar\"]"}, {Type: "LIST", Value: "[{\"foo\":\"bar\""}}
+	_, err = buildActions(tokens, patterns)
+	if err != nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<nil>")
+	}
 
-	_, err := buildActions(tokens, patterns)
+	tokens = []Token{
+		{Type: "PATCH", Value: "PATCH"},
+		{Type: "RESOURCE", Value: "RECORD"},
+	}
+
+	_, err = buildActions(tokens, patterns)
 	if err == nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, "error")
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
 	}
-}
 
-func TestBuildActionsDelete(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
-
-	var expectedError error
-	expectedError = nil
-
-	tokens := []Token{{Type: "DELETE", Value: "DELETE"}, {Type: "IDENTIFIER", Value: "db.col"}, {Type: "DASH", Value: "-"}, {Type: "PIPE", Value: "|"}, {Type: "DELETE", Value: "DELETE"}, {Type: "IDENTIFIER", Value: "db.col"}, {Type: "DASH", Value: "-"}}
-
-	_, err := buildActions(tokens, patterns)
-	if err != expectedError {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
+	tokens = []Token{
+		{Type: "PATCH", Value: "PATCH"},
+		{Type: "RESOURCE", Value: "FOOBAR"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "LIST", Value: "[\"foo\",\"bar\"]"},
+		{Type: "DICT", Value: "{\"foo\":\"bar\"}"},
 	}
-}
 
-func TestBuildActionsDeleteErr1(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
-
-	tokens := []Token{{Type: "DELETE", Value: "DELETE"}, {Type: "STRING", Value: "level"}}
-
-	_, err := buildActions(tokens, patterns)
+	_, err = buildActions(tokens, patterns)
 	if err == nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, "error")
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
 	}
-}
 
-func TestBuildActionsDeleteErr2(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
+	tokens = []Token{
+		{Type: "PATCH", Value: "PATCH"},
+		{Type: "RESOURCE", Value: "RECORD"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "LIST", Value: "[\"foo\",\"bar\"]"},
+		{Type: "LIST", Value: "[{\"foo\":\"bar\"}"},
+	}
 
-	tokens := []Token{{Type: "DELETE", Value: "DELETE"}, {Type: "IDENTIFIER", Value: "db.col"}, {Type: "LIST", Value: "[{\"foo\":\"bar\""}}
-
-	_, err := buildActions(tokens, patterns)
+	_, err = buildActions(tokens, patterns)
 	if err == nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, "error")
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
 	}
-}
 
-func TestBuildActionsFilter(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
-
-	var expectedError error
-	expectedError = nil
-
-	tokens := []Token{{Type: "FILTER", Value: "FILTER"}, {Type: "FIELD", Value: "level"}, {Type: "OP", Value: "="}, {Type: "STRING", Value: "debug"}, {Type: "PIPE", Value: "|"}, {Type: "FILTER", Value: "FILTER"}, {Type: "FIELD", Value: "level"}, {Type: "OP", Value: "="}, {Type: "STRING", Value: "debug"}}
-
-	_, err := buildActions(tokens, patterns)
-	if err != expectedError {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
+	tokens = []Token{
+		{Type: "PATCH", Value: "PATCH"},
+		{Type: "RESOURCE", Value: "RECORD"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "LIST", Value: "[\"foo\",\"bar\"]"},
+		{Type: "DICT", Value: "{\"foo\":\"bar\""},
 	}
-}
 
-func TestBuildActionsFilterErr(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
-
-	tokens := []Token{{Type: "FILTER", Value: "FILTER"}, {Type: "STRING", Value: "level"}}
-
-	_, err := buildActions(tokens, patterns)
+	_, err = buildActions(tokens, patterns)
 	if err == nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, "error")
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
 	}
-}
 
-func TestBuildActionsLimit(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
-
-	var expectedError error
-	expectedError = nil
-
-	tokens := []Token{{Type: "LIMIT", Value: "LIMIT"}, {Type: "INT", Value: "10"}, {Type: "PIPE", Value: "|"}, {Type: "LIMIT", Value: "LIMIT"}, {Type: "INT", Value: "10"}}
-
-	_, err := buildActions(tokens, patterns)
-	if err != expectedError {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
+	tokens = []Token{
+		{Type: "PATCH", Value: "PATCH"},
+		{Type: "RESOURCE", Value: "RECORD"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "LIST", Value: "[\"foo\",\"bar\""},
+		{Type: "DICT", Value: "{\"foo\":\"bar\"}"},
 	}
-}
 
-func TestBuildActionsLimitErr1(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
-
-	tokens := []Token{{Type: "LIMIT", Value: "LIMIT"}, {Type: "STRING", Value: "level"}}
-
-	_, err := buildActions(tokens, patterns)
+	_, err = buildActions(tokens, patterns)
 	if err == nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, "error")
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
 	}
-}
 
-func TestBuildActionsLimitErr2(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
+	tokens = []Token{
+		{Type: "POST", Value: "POST"},
+		{Type: "RESOURCE", Value: "RECORD"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "DICT", Value: "{\"foo\":\"bar\"}"},
+		{Type: "PIPE", Value: "|"},
+		{Type: "POST", Value: "POST"},
+		{Type: "RESOURCE", Value: "RECORD"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "DICT", Value: "{\"foo\":\"bar\"}"},
+	}
 
-	tokens := []Token{{Type: "LIMIT", Value: "LIMIT"}, {Type: "INT", Value: "level"}}
+	_, err = buildActions(tokens, patterns)
+	if err != nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<nil>")
+	}
 
-	_, err := buildActions(tokens, patterns)
+	tokens = []Token{
+		{Type: "POST", Value: "POST"},
+		{Type: "RESOURCE", Value: "USER"},
+		{Type: "DICT", Value: "{\"foo\":\"bar\"}"},
+	}
+
+	_, err = buildActions(tokens, patterns)
+	if err != nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<nil>")
+	}
+
+	tokens = []Token{
+		{Type: "POST", Value: "POST"},
+		{Type: "RESOURCE", Value: "RECORD"},
+	}
+
+	_, err = buildActions(tokens, patterns)
 	if err == nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, "error")
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
 	}
-}
 
-func TestBuildActionsOrderASC(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
-
-	var expectedError error
-	expectedError = nil
-
-	tokens := []Token{{Type: "ORDERASC", Value: "ORDERASC"}, {Type: "FIELD", Value: "level"}, {Type: "PIPE", Value: "|"}, {Type: "ORDERASC", Value: "ORDERASC"}, {Type: "FIELD", Value: "level"}}
-
-	_, err := buildActions(tokens, patterns)
-	if err != expectedError {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
+	tokens = []Token{
+		{Type: "POST", Value: "POST"},
+		{Type: "RESOURCE", Value: "FOOBAR"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "DICT", Value: "{\"foo\":\"bar\"}"},
 	}
-}
 
-func TestBuildActionsOrderASCErr(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
-
-	tokens := []Token{{Type: "ORDERASC", Value: "ORDERASC"}, {Type: "STRING", Value: "level"}}
-
-	_, err := buildActions(tokens, patterns)
+	_, err = buildActions(tokens, patterns)
 	if err == nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, "error")
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
 	}
-}
 
-func TestBuildActionsOrderDSC(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
-
-	var expectedError error
-	expectedError = nil
-
-	tokens := []Token{{Type: "ORDERDSC", Value: "ORDERDSC"}, {Type: "FIELD", Value: "level"}, {Type: "PIPE", Value: "|"}, {Type: "ORDERDSC", Value: "ORDERDSC"}, {Type: "FIELD", Value: "level"}}
-
-	_, err := buildActions(tokens, patterns)
-	if err != expectedError {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
+	tokens = []Token{
+		{Type: "POST", Value: "POST"},
+		{Type: "RESOURCE", Value: "RECORD"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "LIST", Value: "[{\"foo\":\"bar\"}"},
 	}
-}
 
-func TestBuildActionsOrderDSCErr(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
-
-	tokens := []Token{{Type: "ORDERDSC", Value: "ORDERDSC"}, {Type: "STRING", Value: "level"}}
-
-	_, err := buildActions(tokens, patterns)
+	_, err = buildActions(tokens, patterns)
 	if err == nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, "error")
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
 	}
-}
 
-func TestBuildActionsCreateDB(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
-
-	var expectedError error
-	expectedError = nil
-
-	tokens := []Token{{Type: "DBADD", Value: "DBADD"}, {Type: "FIELD", Value: "db"}, {Type: "PIPE", Value: "|"}, {Type: "DBADD", Value: "DBADD"}, {Type: "FIELD", Value: "db"}}
-
-	_, err := buildActions(tokens, patterns)
-	if err != expectedError {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
+	tokens = []Token{
+		{Type: "POST", Value: "POST"},
+		{Type: "RESOURCE", Value: "USER"},
+		{Type: "LIST", Value: "[{\"foo\":\"bar\"}"},
 	}
-}
 
-func TestBuildActionsCreateDBErr(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
-
-	tokens := []Token{{Type: "DBADD", Value: "DBADD"}, {Type: "INT", Value: "42"}, {Type: "PIPE", Value: "|"}, {Type: "DBADD", Value: "DBADD"}, {Type: "FIELD", Value: "db"}}
-
-	_, err := buildActions(tokens, patterns)
+	_, err = buildActions(tokens, patterns)
 	if err == nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, "error")
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
 	}
-}
 
-func TestBuildActionsCreateCOL(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
-
-	var expectedError error
-	expectedError = nil
-
-	tokens := []Token{{Type: "COLADD", Value: "COLADD"}, {Type: "IDENTIFIER", Value: "db.foo"}, {Type: "DICT", Value: "{\"foo\":\"STRING\"}"}, {Type: "PIPE", Value: "|"}, {Type: "COLADD", Value: "COLADD"}, {Type: "IDENTIFIER", Value: "db.foo"}, {Type: "DICT", Value: "{\"foo\":\"STRING\"}"}}
-
-	_, err := buildActions(tokens, patterns)
-	if err != expectedError {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
+	tokens = []Token{
+		{Type: "PUT", Value: "PUT"},
+		{Type: "RESOURCE", Value: "RECORD"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "DICT", Value: "{\"foo\":\"bar\"}"},
+		{Type: "PIPE", Value: "|"},
+		{Type: "PUT", Value: "PUT"},
+		{Type: "RESOURCE", Value: "RECORD"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "DICT", Value: "{\"foo\":\"bar\"}"},
 	}
-}
 
-func TestBuildActionsCreateCOLErr(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
+	_, err = buildActions(tokens, patterns)
+	if err != nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<nil>")
+	}
 
-	tokens := []Token{{Type: "COLADD", Value: "COLADD"}, {Type: "INT", Value: "42"}, {Type: "PIPE", Value: "|"}, {Type: "COLADD", Value: "COLADD"}, {Type: "IDENTIFIER", Value: "db.foo"}}
+	tokens = []Token{
+		{Type: "PUT", Value: "PUT"},
+		{Type: "RESOURCE", Value: "USER"},
+		{Type: "DICT", Value: "{\"foo\":\"bar\"}"},
+	}
 
-	_, err := buildActions(tokens, patterns)
+	_, err = buildActions(tokens, patterns)
+	if err != nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<nil>")
+	}
+
+	tokens = []Token{
+		{Type: "PUT", Value: "PUT"},
+		{Type: "RESOURCE", Value: "RECORD"},
+	}
+
+	_, err = buildActions(tokens, patterns)
 	if err == nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, "error")
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
 	}
-}
 
-func TestBuildActionsDBDEL(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
-
-	var expectedError error
-	expectedError = nil
-
-	tokens := []Token{{Type: "DBDEL", Value: "DBDEL"}, {Type: "FIELD", Value: "db"}, {Type: "PIPE", Value: "|"}, {Type: "DBDEL", Value: "DBDEL"}, {Type: "FIELD", Value: "db"}}
-
-	_, err := buildActions(tokens, patterns)
-	if err != expectedError {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
+	tokens = []Token{
+		{Type: "PUT", Value: "PUT"},
+		{Type: "RESOURCE", Value: "FOOBAR"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "DICT", Value: "{\"foo\":\"bar\"}"},
 	}
-}
 
-func TestBuildActionsDBDELErr(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
-
-	tokens := []Token{{Type: "DBDEL", Value: "DBDEL"}, {Type: "INT", Value: "42"}, {Type: "PIPE", Value: "|"}, {Type: "DBDEL", Value: "DBDEL"}, {Type: "FIELD", Value: "db"}}
-
-	_, err := buildActions(tokens, patterns)
+	_, err = buildActions(tokens, patterns)
 	if err == nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, "error")
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
 	}
-}
 
-func TestBuildActionsCOLDEL(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
-
-	var expectedError error
-	expectedError = nil
-
-	tokens := []Token{{Type: "COLDEL", Value: "COLDEL"}, {Type: "IDENTIFIER", Value: "db.foo"}, {Type: "PIPE", Value: "|"}, {Type: "COLDEL", Value: "COLDEL"}, {Type: "IDENTIFIER", Value: "db.foo"}}
-
-	_, err := buildActions(tokens, patterns)
-	if err != expectedError {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
+	tokens = []Token{
+		{Type: "PUT", Value: "PUT"},
+		{Type: "RESOURCE", Value: "RECORD"},
+		{Type: "IDENTIFIER", Value: "db.col"},
+		{Type: "LIST", Value: "[{\"foo\":\"bar\"}"},
 	}
-}
 
-func TestBuildActionsCOLDELErr(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
-	config.ReadConfigFile()
-	patterns, _ := getPatterns()
-
-	tokens := []Token{{Type: "COLDEL", Value: "COLDEL"}, {Type: "INT", Value: "42"}, {Type: "PIPE", Value: "|"}, {Type: "COLDEL", Value: "COLDEL"}, {Type: "IDENTIFIER", Value: "db.foo"}}
-
-	_, err := buildActions(tokens, patterns)
+	_, err = buildActions(tokens, patterns)
 	if err == nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, "error")
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
+	}
+
+	tokens = []Token{
+		{Type: "PUT", Value: "PUT"},
+		{Type: "RESOURCE", Value: "USER"},
+		{Type: "LIST", Value: "[{\"foo\":\"bar\"}"},
+	}
+
+	_, err = buildActions(tokens, patterns)
+	if err == nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
+	}
+
+	tokens = []Token{
+		{Type: "COUNT", Value: "COUNT"},
+		{Type: "PIPE", Value: "|"},
+		{Type: "COUNT", Value: "COUNT"},
+	}
+
+	_, err = buildActions(tokens, patterns)
+	if err != nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<nil>")
+	}
+
+	tokens = []Token{
+		{Type: "COUNT", Value: "COUNT"},
+		{Type: "STRING", Value: "foobar"},
+	}
+
+	_, err = buildActions(tokens, patterns)
+	if err == nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
+	}
+
+	tokens = []Token{
+		{Type: "FILTER", Value: "FILTER"},
+		{Type: "FIELD", Value: "index"},
+		{Type: "OP", Value: "="},
+		{Type: "STRING", Value: "debug"},
+		{Type: "PIPE", Value: "|"},
+		{Type: "FILTER", Value: "FILTER"},
+		{Type: "FIELD", Value: "index"},
+		{Type: "OP", Value: "="},
+		{Type: "STRING", Value: "debug"},
+	}
+
+	_, err = buildActions(tokens, patterns)
+	if err != nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<nil>")
+	}
+
+	tokens = []Token{
+		{Type: "FILTER", Value: "FILTER"},
+		{Type: "FIELD", Value: "index"},
+		{Type: "FIELD", Value: "index"},
+		{Type: "FIELD", Value: "index"},
+	}
+
+	_, err = buildActions(tokens, patterns)
+	if err == nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
+	}
+
+	tokens = []Token{
+		{Type: "LIMIT", Value: "LIMIT"},
+		{Type: "INT", Value: "10"},
+		{Type: "PIPE", Value: "|"},
+		{Type: "LIMIT", Value: "LIMIT"},
+		{Type: "INT", Value: "10"},
+	}
+
+	_, err = buildActions(tokens, patterns)
+	if err != nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<nil>")
+	}
+
+	tokens = []Token{
+		{Type: "LIMIT", Value: "LIMIT"},
+		{Type: "STRING", Value: "10"},
+	}
+
+	_, err = buildActions(tokens, patterns)
+	if err == nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
+	}
+
+	tokens = []Token{
+		{Type: "LIMIT", Value: "LIMIT"},
+		{Type: "INT", Value: "foobar"},
+	}
+
+	_, err = buildActions(tokens, patterns)
+	if err == nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
+	}
+
+	tokens = []Token{
+		{Type: "ORDERASC", Value: "ORDERASC"},
+		{Type: "FIELD", Value: "index"},
+		{Type: "PIPE", Value: "|"},
+		{Type: "ORDERASC", Value: "ORDERASC"},
+		{Type: "FIELD", Value: "index"},
+	}
+
+	_, err = buildActions(tokens, patterns)
+	if err != nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<nil>")
+	}
+
+	tokens = []Token{
+		{Type: "ORDERASC", Value: "ORDERASC"},
+		{Type: "STRING", Value: "10"},
+	}
+
+	_, err = buildActions(tokens, patterns)
+	if err == nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
+	}
+
+	tokens = []Token{
+		{Type: "ORDERDSC", Value: "ORDERDSC"},
+		{Type: "FIELD", Value: "index"},
+		{Type: "PIPE", Value: "|"},
+		{Type: "ORDERDSC", Value: "ORDERDSC"},
+		{Type: "FIELD", Value: "index"},
+	}
+
+	_, err = buildActions(tokens, patterns)
+	if err != nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<nil>")
+	}
+
+	tokens = []Token{
+		{Type: "ORDERDSC", Value: "ORDERDSC"},
+		{Type: "STRING", Value: "10"},
+	}
+
+	_, err = buildActions(tokens, patterns)
+	if err == nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
+	}
+}
+
+func TestParseString(t *testing.T) {
+	inputString := "GET RECORD db.foo \"hello\",\"world\" (\"this\", \"is\", \"a\", \"nested\") [\"this\", \"is\", \"a\", \"list\"] {\"this\":\"is\", \"a\":\"dict\"}"
+	expectedTokens := []Token{
+		{Type: "GET", Value: "GET"},
+		{Type: "RESOURCE", Value: "RECORD"},
+		{Type: "IDENTIFIER", Value: "db.foo"},
+		{Type: "STRING", Value: "hello"},
+		{Type: "STRING", Value: "hello"},
+		{Type: "STRING", Value: "hello\"\"world"},
+		{Type: "NESTED", Value: "(\"this\", \"is\", \"a\", \"nested\")"},
+		{Type: "LIST", Value: "[\"this\", \"is\", \"a\", \"list\"]"},
+		{Type: "DICT", Value: "{\"this\":\"is\", \"a\":\"dict\"}"},
+	}
+
+	tokens := parseString(inputString)
+
+	if !reflect.DeepEqual(tokens, expectedTokens) {
+		t.Errorf("Tokens were incorrect, got: %v, want: %v", tokens, expectedTokens)
 	}
 }
 
 func TestParse(t *testing.T) {
-	text := "GET db.col foo, bar | DELETE db.col [\"foo\",\"bar\"] | POST db.col {\"foo\": \"bar\"}"
-	_, err := Parse(text)
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
+	config.ReadConfigFile()
+
+	inputString := "GET RECORD db.foo *"
+
+	_, err := Parse(inputString)
 
 	if err != nil {
-		t.Errorf("Error was incorrect, got: %v, want: %v", err, nil)
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<nil>")
+	}
+
+	inputString = "GET RECORD"
+
+	_, err = Parse(inputString)
+
+	if err == nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
+	}
+
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config-no-aql.json")
+	config.ReadConfigFile()
+
+	_, err = Parse(inputString)
+
+	if err == nil {
+		t.Errorf("Error was incorrect, got: %v, want: %v", err, "<non-nil>")
 	}
 }

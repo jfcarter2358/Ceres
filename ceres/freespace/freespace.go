@@ -30,7 +30,7 @@ type FreeSpaceStruct struct {
 var FreeSpace FreeSpaceStruct
 
 func LoadFreeSpace() error {
-	path := filepath.Join(config.Config.CeresDir, "free_space.json")
+	path := filepath.Join(config.Config.HomeDir, "free_space.json")
 
 	// Open our jsonFile
 	jsonFile, err := os.Open(path)
@@ -96,7 +96,7 @@ func LoadFreeSpace() error {
 }
 
 func WriteFreeSpace() error {
-	path := filepath.Join(config.Config.CeresDir, "free_space.json")
+	path := filepath.Join(config.Config.HomeDir, "free_space.json")
 
 	output := make(map[string]interface{})
 	for dbKey, db := range FreeSpace.Databases {

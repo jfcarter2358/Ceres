@@ -1,0 +1,44 @@
+{
+    "db1": {
+        "foo": {
+            "bar": {
+                "blocks": [
+                    [
+                        20,
+                        31
+                    ]
+                ],
+                "full": false
+            },
+            "baz": {
+                "blocks": [
+                    [
+                        20,
+                        31
+                    ]
+                ],
+                "full": false
+            }
+        },
+        "foo1": {
+            "bar": {
+                "blocks": [
+                    [
+                        20,
+                        31
+                    ]
+                ],
+                "full": false
+            },
+            "baz": {
+                "blocks": [
+                    [
+                        20,
+                        31
+                    ]
+                ],
+                "full": false
+            }
+        }
+    }
+}

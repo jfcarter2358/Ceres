@@ -6,6 +6,7 @@ import (
 	"ceres/utils"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -39,6 +40,7 @@ type FlagStruct struct {
 type Action struct {
 	Type       string
 	Identifier string
+	Resource   string
 	IDs        []string
 	Fields     []string
 	Limit      int
@@ -53,8 +55,9 @@ type Action struct {
 func determineType(value string, token *Token) {
 	ops := []string{">", ">=", "=", "<=", "<", "!="}
 	logic := []string{"AND", "OR", "XOR", "NOT"}
-	switch value {
-	// First check the types that only have one possible value
+	resources := []string{"DATABASE", "RECORD", "COLLECTION", "USER", "PERMIT"}
+	switch strings.ToUpper(value) {
+	// Grammar
 	case ",":
 		token.Type = "COMMA"
 	case "(":
@@ -73,60 +76,51 @@ func determineType(value string, token *Token) {
 		token.Type = "PIPE"
 	case "*":
 		token.Type = "WILDCARD"
-	case "GET":
-		token.Type = "GET"
-	case "POST":
-		token.Type = "POST"
-	case "PUT":
-		token.Type = "PUT"
-	case "PATCH":
-		token.Type = "PATCH"
-	case "DELETE":
-		token.Type = "DELETE"
-	case "LIMIT":
-		token.Type = "LIMIT"
-	case "FILTER":
-		token.Type = "FILTER"
-	case "ORDERASC":
-		token.Type = "ORDERASC"
-	case "ORDERDSC":
-		token.Type = "ORDERDSC"
 	case "-":
 		token.Type = "DASH"
-	case "DBADD":
-		token.Type = "DBADD"
-	case "COLADD":
-		token.Type = "COLADD"
-	case "COLMOD":
-		token.Type = "COLMOD"
-	case "DBDEL":
-		token.Type = "DBDEL"
-	case "COLDEL":
-		token.Type = "COLDEL"
-	case "PERMITADD":
-		token.Type = "PERMITADD"
-	case "PERMITDEL":
-		token.Type = "PERMITDEL"
-	case "PERMITMOD":
-		token.Type = "PERMITMOD"
-	case "PERMITGET":
-		token.Type = "PERMITGET"
-	case "USERADD":
-		token.Type = "USERADD"
-	case "USERDEL":
-		token.Type = "USERDEL"
-	case "USERMOD":
-		token.Type = "USERMOD"
-	case "USERGET":
-		token.Type = "USERGET"
+	// Actions
+	case "GET":
+		token.Type = "GET"
+		token.Value = strings.ToUpper(value)
+	case "POST":
+		token.Type = "POST"
+		token.Value = strings.ToUpper(value)
+	case "PUT":
+		token.Type = "PUT"
+		token.Value = strings.ToUpper(value)
+	case "PATCH":
+		token.Type = "PATCH"
+		token.Value = strings.ToUpper(value)
+	case "DELETE":
+		token.Type = "DELETE"
+		token.Value = strings.ToUpper(value)
 	case "COUNT":
 		token.Type = "COUNT"
+		token.Value = strings.ToUpper(value)
+	case "LIMIT":
+		token.Type = "LIMIT"
+		token.Value = strings.ToUpper(value)
+	case "FILTER":
+		token.Type = "FILTER"
+		token.Value = strings.ToUpper(value)
+	case "ORDERASC":
+		token.Type = "ORDERASC"
+		token.Value = strings.ToUpper(value)
+	case "ORDERDSC":
+		token.Type = "ORDERDSC"
+		token.Value = strings.ToUpper(value)
 	default:
+		val := strings.ToUpper(value)
 		// Check the more open-ended types
-		if utils.Contains(ops, value) {
+		if utils.Contains(ops, val) {
 			token.Type = "OP"
-		} else if utils.Contains(logic, value) {
+			token.Value = val
+		} else if utils.Contains(resources, val) {
+			token.Type = "RESOURCE"
+			token.Value = val
+		} else if utils.Contains(logic, val) {
 			token.Type = "LOGIC"
+			token.Value = val
 		} else if value[0:1] == "\"" {
 			token.Type = "STRING"
 			token.Value = value[1 : len(value)-1]
@@ -151,8 +145,8 @@ func determineType(value string, token *Token) {
 }
 
 // Get the patterns which define the AQL language
-func getPatterns() (map[string]string, error) {
-	path := config.Config.CeresDir + "/config/aql.json"
+func getPatterns() (map[string]interface{}, error) {
+	path := config.Config.HomeDir + "/config/aql.json"
 
 	// Open our jsonFile
 	jsonFile, err := os.Open(path)
@@ -165,18 +159,12 @@ func getPatterns() (map[string]string, error) {
 	// Read and unmarshal the JSON
 	byteValue, _ := ioutil.ReadAll(jsonFile)
 
-	var f interface{}
+	var output map[string]interface{}
 
 	// Read the JSON
-	err = json.Unmarshal(byteValue, &f)
+	err = json.Unmarshal(byteValue, &output)
 	if err != nil {
 		return nil, err
-	}
-
-	output := make(map[string]string)
-
-	for key, val := range f.(map[string]interface{}) {
-		output[key] = val.(string)
 	}
 
 	return output, nil
@@ -328,7 +316,7 @@ func handleFields(token Token, currentAction *Action) error {
 
 // buildActions takes a list of tokens and figures out which actions should be created to operate
 // within Ceres.
-func buildActions(tokens []Token, patterns map[string]string) ([]Action, error) {
+func buildActions(tokens []Token, patterns map[string]interface{}) ([]Action, error) {
 	tokenActions := make([][]Token, 0)
 	buffer := make([]Token, 0)
 	// Break the list of tokens down into a list of sepearate actions that were originally separated
@@ -370,16 +358,164 @@ func buildActions(tokens []Token, patterns map[string]string) ([]Action, error) 
 			if !firstFlag {
 				actions = append(actions, currentAction)
 			}
-
-			if err := checkPattern(actionString, actionSyntax, patterns["GET"]); err != nil {
+			patternMap := patterns["GET"].(map[string]interface{})
+			if _, ok := patternMap[tokenAction[1].Value]; !ok {
+				return nil, errors.New(fmt.Sprintf("Invalid resource type %v", tokenAction[1].Value))
+			}
+			pattern := patternMap[tokenAction[1].Value].(string)
+			if err := checkPattern(actionString, actionSyntax, pattern); err != nil {
 				return nil, err
 			}
 			currentAction = Action{Type: "GET"}
-			currentAction.Identifier = tokenAction[1].Value
+			currentAction.Resource = tokenAction[1].Value
+
+			if currentAction.Resource == "USER" {
+				if len(tokenAction) > 2 {
+					if err := handleFields(tokenAction[2], &currentAction); err != nil {
+						return nil, err
+					}
+				}
+			} else {
+				if len(tokenAction) > 2 {
+					currentAction.Identifier = tokenAction[2].Value
+				}
+
+				if len(tokenAction) > 3 {
+					if err := handleFields(tokenAction[3], &currentAction); err != nil {
+						return nil, err
+					}
+				}
+			}
+
+			firstFlag = false
+		case "POST":
+			if !firstFlag {
+				actions = append(actions, currentAction)
+			}
+			patternMap := patterns["POST"].(map[string]interface{})
+			if _, ok := patternMap[tokenAction[1].Value]; !ok {
+				return nil, errors.New(fmt.Sprintf("Invalid resource type %v", tokenAction[1].Value))
+			}
+			pattern := patternMap[tokenAction[1].Value].(string)
+			if err := checkPattern(actionString, actionSyntax, pattern); err != nil {
+				return nil, err
+			}
+			currentAction = Action{Type: "POST"}
+			currentAction.Resource = tokenAction[1].Value
+
+			if currentAction.Resource == "USER" {
+				if len(tokenAction) > 2 {
+					if err := handleData(tokenAction[2], &currentAction); err != nil {
+						return nil, err
+					}
+				}
+			} else {
+				if len(tokenAction) > 2 {
+					currentAction.Identifier = tokenAction[2].Value
+				}
+
+				if len(tokenAction) > 3 {
+					if err := handleData(tokenAction[3], &currentAction); err != nil {
+						return nil, err
+					}
+				}
+			}
+
+			firstFlag = false
+		case "PUT":
+			if !firstFlag {
+				actions = append(actions, currentAction)
+			}
+			patternMap := patterns["PUT"].(map[string]interface{})
+			if _, ok := patternMap[tokenAction[1].Value]; !ok {
+				return nil, errors.New(fmt.Sprintf("Invalid resource type %v", tokenAction[1].Value))
+			}
+			pattern := patternMap[tokenAction[1].Value].(string)
+			if err := checkPattern(actionString, actionSyntax, pattern); err != nil {
+				return nil, err
+			}
+			currentAction = Action{Type: "PUT"}
+			currentAction.Resource = tokenAction[1].Value
+
+			if currentAction.Resource == "USER" {
+				if len(tokenAction) > 2 {
+					if err := handleData(tokenAction[2], &currentAction); err != nil {
+						return nil, err
+					}
+				}
+			} else {
+				if len(tokenAction) > 2 {
+					currentAction.Identifier = tokenAction[2].Value
+				}
+
+				if len(tokenAction) > 3 {
+					if err := handleData(tokenAction[3], &currentAction); err != nil {
+						return nil, err
+					}
+				}
+			}
+
+			firstFlag = false
+		case "PATCH":
+			if !firstFlag {
+				actions = append(actions, currentAction)
+			}
+			patternMap := patterns["PATCH"].(map[string]interface{})
+			if _, ok := patternMap[tokenAction[1].Value]; !ok {
+				return nil, errors.New(fmt.Sprintf("Invalid resource type %v", tokenAction[1].Value))
+			}
+			pattern := patternMap[tokenAction[1].Value].(string)
+			if err := checkPattern(actionString, actionSyntax, pattern); err != nil {
+				return nil, err
+			}
+			currentAction = Action{Type: "PATCH"}
+			currentAction.Resource = tokenAction[1].Value
 
 			if len(tokenAction) > 2 {
-				if err := handleFields(tokenAction[2], &currentAction); err != nil {
+				currentAction.Identifier = tokenAction[2].Value
+			}
+			if len(tokenAction) > 3 {
+				if err := handleIDs(tokenAction[3], &currentAction); err != nil {
 					return nil, err
+				}
+			}
+			if len(tokenAction) > 4 {
+				if err := handleData(tokenAction[4], &currentAction); err != nil {
+					return nil, err
+				}
+			}
+
+			firstFlag = false
+		case "DELETE":
+			if !firstFlag {
+				actions = append(actions, currentAction)
+			}
+			patternMap := patterns["DELETE"].(map[string]interface{})
+			if _, ok := patternMap[tokenAction[1].Value]; !ok {
+				return nil, errors.New(fmt.Sprintf("Invalid resource type %v", tokenAction[1].Value))
+			}
+			pattern := patternMap[tokenAction[1].Value].(string)
+			if err := checkPattern(actionString, actionSyntax, pattern); err != nil {
+				return nil, err
+			}
+			currentAction = Action{Type: "DELETE"}
+			currentAction.Resource = tokenAction[1].Value
+
+			if currentAction.Resource == "USER" {
+				if len(tokenAction) > 2 {
+					if err := handleIDs(tokenAction[2], &currentAction); err != nil {
+						return nil, err
+					}
+				}
+			} else {
+				if len(tokenAction) > 2 {
+					currentAction.Identifier = tokenAction[2].Value
+				}
+
+				if len(tokenAction) > 3 {
+					if err := handleIDs(tokenAction[3], &currentAction); err != nil {
+						return nil, err
+					}
 				}
 			}
 
@@ -388,88 +524,21 @@ func buildActions(tokens []Token, patterns map[string]string) ([]Action, error) 
 			if !firstFlag {
 				actions = append(actions, currentAction)
 			}
-
-			if err := checkPattern(actionString, actionSyntax, patterns["COUNT"]); err != nil {
+			pattern := patterns["COUNT"].(string)
+			if err := checkPattern(actionString, actionSyntax, pattern); err != nil {
 				return nil, err
 			}
 			currentAction = Action{Type: "COUNT"}
-			currentAction.Identifier = tokenAction[1].Value
-
-			firstFlag = false
-		case "POST":
-			if !firstFlag {
-				actions = append(actions, currentAction)
-			}
-
-			if err := checkPattern(actionString, actionSyntax, patterns["POST"]); err != nil {
-				return nil, err
-			}
-			currentAction = Action{Type: "POST"}
-			currentAction.Identifier = tokenAction[1].Value
-
-			if err := handleData(tokenAction[2], &currentAction); err != nil {
-				return nil, err
-			}
-
-			firstFlag = false
-		case "PUT":
-			if !firstFlag {
-				actions = append(actions, currentAction)
-			}
-
-			if err := checkPattern(actionString, actionSyntax, patterns["PUT"]); err != nil {
-				return nil, err
-			}
-			currentAction = Action{Type: "PUT"}
-			currentAction.Identifier = tokenAction[1].Value
-
-			if err := handleData(tokenAction[2], &currentAction); err != nil {
-				return nil, err
-			}
-
-			firstFlag = false
-		case "PATCH":
-			if !firstFlag {
-				actions = append(actions, currentAction)
-			}
-
-			if err := checkPattern(actionString, actionSyntax, patterns["PATCH"]); err != nil {
-				return nil, err
-			}
-			currentAction = Action{Type: "PATCH"}
-			currentAction.Identifier = tokenAction[1].Value
-
-			if err := handleIDs(tokenAction[2], &currentAction); err != nil {
-				return nil, err
-			}
-			if err := handleData(tokenAction[3], &currentAction); err != nil {
-				return nil, err
-			}
-
-			firstFlag = false
-		case "DELETE":
-			if !firstFlag {
-				actions = append(actions, currentAction)
-			}
-
-			if err := checkPattern(actionString, actionSyntax, patterns["DELETE"]); err != nil {
-				return nil, err
-			}
-			currentAction = Action{Type: "DELETE"}
-			currentAction.Identifier = tokenAction[1].Value
-
-			if err := handleIDs(tokenAction[2], &currentAction); err != nil {
-				return nil, err
-			}
-
 			firstFlag = false
 		case "FILTER":
-			if err := checkPattern(actionString, actionSyntax, patterns["FILTER"]); err != nil {
+			pattern := patterns["FILTER"].(string)
+			if err := checkPattern(actionString, actionSyntax, pattern); err != nil {
 				return nil, err
 			}
 			currentAction.Filter = handleConditionals(tokenAction[1:])
 		case "LIMIT":
-			if err := checkPattern(actionString, actionSyntax, patterns["LIMIT"]); err != nil {
+			pattern := patterns["LIMIT"].(string)
+			if err := checkPattern(actionString, actionSyntax, pattern); err != nil {
 				return nil, err
 			}
 			val, err := strconv.Atoi(tokenAction[1].Value)
@@ -478,193 +547,19 @@ func buildActions(tokens []Token, patterns map[string]string) ([]Action, error) 
 			}
 			currentAction.Limit = val
 		case "ORDERASC":
-			if err := checkPattern(actionString, actionSyntax, patterns["ORDERASC"]); err != nil {
+			pattern := patterns["ORDERASC"].(string)
+			if err := checkPattern(actionString, actionSyntax, pattern); err != nil {
 				return nil, err
 			}
 			currentAction.OrderDir = "ASC"
 			currentAction.Order = tokenAction[1].Value
 		case "ORDERDSC":
-			if err := checkPattern(actionString, actionSyntax, patterns["ORDERDSC"]); err != nil {
+			pattern := patterns["ORDERDSC"].(string)
+			if err := checkPattern(actionString, actionSyntax, pattern); err != nil {
 				return nil, err
 			}
 			currentAction.OrderDir = "DSC"
 			currentAction.Order = tokenAction[1].Value
-		case "DBADD":
-			if !firstFlag {
-				actions = append(actions, currentAction)
-			}
-
-			if err := checkPattern(actionString, actionSyntax, patterns["DBADD"]); err != nil {
-				return nil, err
-			}
-			currentAction = Action{Type: "DBADD"}
-			currentAction.Identifier = tokenAction[1].Value
-
-			firstFlag = false
-		case "COLADD":
-			if !firstFlag {
-				actions = append(actions, currentAction)
-			}
-
-			if err := checkPattern(actionString, actionSyntax, patterns["COLADD"]); err != nil {
-				return nil, err
-			}
-			currentAction = Action{Type: "COLADD"}
-			currentAction.Identifier = tokenAction[1].Value
-
-			if err := handleData(tokenAction[2], &currentAction); err != nil {
-				return nil, err
-			}
-
-			firstFlag = false
-		case "COLMOD":
-			if !firstFlag {
-				actions = append(actions, currentAction)
-			}
-
-			if err := checkPattern(actionString, actionSyntax, patterns["COLMOD"]); err != nil {
-				return nil, err
-			}
-			currentAction = Action{Type: "COLMOD"}
-			currentAction.Identifier = tokenAction[1].Value
-
-			if err := handleData(tokenAction[2], &currentAction); err != nil {
-				return nil, err
-			}
-
-			firstFlag = false
-		case "DBDEL":
-			if !firstFlag {
-				actions = append(actions, currentAction)
-			}
-
-			if err := checkPattern(actionString, actionSyntax, patterns["DBDEL"]); err != nil {
-				return nil, err
-			}
-			currentAction = Action{Type: "DBDEL"}
-			currentAction.Identifier = tokenAction[1].Value
-
-			firstFlag = false
-		case "COLDEL":
-			if !firstFlag {
-				actions = append(actions, currentAction)
-			}
-
-			if err := checkPattern(actionString, actionSyntax, patterns["COLDEL"]); err != nil {
-				return nil, err
-			}
-			currentAction = Action{Type: "COLDEL"}
-			currentAction.Identifier = tokenAction[1].Value
-
-			firstFlag = false
-		case "USERADD":
-			if !firstFlag {
-				actions = append(actions, currentAction)
-			}
-
-			if err := checkPattern(actionString, actionSyntax, patterns["USERADD"]); err != nil {
-				return nil, err
-			}
-			currentAction = Action{Type: "USERADD"}
-			if err := handleData(tokenAction[1], &currentAction); err != nil {
-				return nil, err
-			}
-
-			firstFlag = false
-		case "USERMOD":
-			if !firstFlag {
-				actions = append(actions, currentAction)
-			}
-
-			if err := checkPattern(actionString, actionSyntax, patterns["USERMOD"]); err != nil {
-				return nil, err
-			}
-			currentAction = Action{Type: "USERMOD"}
-			if err := handleData(tokenAction[1], &currentAction); err != nil {
-				return nil, err
-			}
-
-			firstFlag = false
-		case "USERDEL":
-			if !firstFlag {
-				actions = append(actions, currentAction)
-			}
-
-			if err := checkPattern(actionString, actionSyntax, patterns["USERDEL"]); err != nil {
-				return nil, err
-			}
-			currentAction = Action{Type: "USERDEL"}
-			currentAction.User = tokenAction[1].Value
-
-			firstFlag = false
-		case "USERGET":
-			if !firstFlag {
-				actions = append(actions, currentAction)
-			}
-
-			if err := checkPattern(actionString, actionSyntax, patterns["USERGET"]); err != nil {
-				return nil, err
-			}
-			currentAction = Action{Type: "USERGET"}
-			currentAction.User = tokenAction[1].Value
-
-			firstFlag = false
-		case "PERMITADD":
-			if !firstFlag {
-				actions = append(actions, currentAction)
-			}
-
-			if err := checkPattern(actionString, actionSyntax, patterns["PERMITADD"]); err != nil {
-				return nil, err
-			}
-			currentAction = Action{Type: "PERMITADD"}
-			currentAction.Identifier = tokenAction[1].Value
-			if err := handleData(tokenAction[2], &currentAction); err != nil {
-				return nil, err
-			}
-
-			firstFlag = false
-		case "PERMITMOD":
-			if !firstFlag {
-				actions = append(actions, currentAction)
-			}
-
-			if err := checkPattern(actionString, actionSyntax, patterns["PERMITMOD"]); err != nil {
-				return nil, err
-			}
-			currentAction = Action{Type: "PERMITMOD"}
-			currentAction.Identifier = tokenAction[1].Value
-			if err := handleData(tokenAction[2], &currentAction); err != nil {
-				return nil, err
-			}
-
-			firstFlag = false
-		case "PERMITDEL":
-			if !firstFlag {
-				actions = append(actions, currentAction)
-			}
-
-			if err := checkPattern(actionString, actionSyntax, patterns["PERMITDEL"]); err != nil {
-				return nil, err
-			}
-			currentAction = Action{Type: "PERMITDEL"}
-			currentAction.Identifier = tokenAction[1].Value
-			currentAction.User = tokenAction[2].Value
-
-			firstFlag = false
-		case "PERMITGET":
-			if !firstFlag {
-				actions = append(actions, currentAction)
-			}
-
-			if err := checkPattern(actionString, actionSyntax, patterns["PERMITGET"]); err != nil {
-				return nil, err
-			}
-			currentAction = Action{Type: "PERMITGET"}
-			currentAction.Identifier = tokenAction[1].Value
-			currentAction.User = tokenAction[2].Value
-
-			firstFlag = false
 		}
 	}
 	actions = append(actions, currentAction)

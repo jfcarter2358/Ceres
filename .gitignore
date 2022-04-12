@@ -8,3 +8,7 @@
 !/test/.ceres/data/db1/foo1/bar.bak
 !/test/.ceres/data/db1/foo1/baz.bak
 /docs/build
+__pycache__
+.pytest_cache
+timing_*_*.json
+container.log

@@ -74,13 +74,7 @@ func Delete(database, collection string, datum map[string]interface{}) error {
 		}
 		indices = strings.Split(string(data), "\n")
 		indices = removeIndex(indices, datum[".id"].(string))
-		if len(indices) == 1 {
-			if err = os.Remove(allPath); err != nil {
-				return err
-			}
-		} else {
-			os.WriteFile(allPath, []byte(strings.Join(indices, "\n")), 0644)
-		}
+		os.WriteFile(allPath, []byte(strings.Join(indices, "\n")), 0644)
 	}
 	return nil
 }

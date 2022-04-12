@@ -28,7 +28,7 @@ type SchemaStruct struct {
 var Schema SchemaStruct
 
 func LoadSchema() error {
-	path := filepath.Join(config.Config.CeresDir, "schema.json")
+	path := filepath.Join(config.Config.HomeDir, "schema.json")
 
 	// Open our jsonFile
 	jsonFile, err := os.Open(path)
@@ -78,7 +78,7 @@ func LoadSchema() error {
 }
 
 func WriteSchema() error {
-	path := filepath.Join(config.Config.CeresDir, "schema.json")
+	path := filepath.Join(config.Config.HomeDir, "schema.json")
 
 	output := make(map[string]interface{})
 	for dbKey, db := range Schema.Databases {

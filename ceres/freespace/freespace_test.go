@@ -6,11 +6,14 @@ import (
 	"errors"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/andreyvit/diff"
 )
 
 func TestLoadFreeSpace(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres-free_space/config/config.json")
 	config.ReadConfigFile()
 
 	expectedFreeSpace := FreeSpaceStruct{
@@ -59,9 +62,9 @@ func TestLoadFreeSpace(t *testing.T) {
 }
 
 func TestLoadFreeSpaceNoFile(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres-free_space/config/config.json")
 	config.ReadConfigFile()
-	config.Config.CeresDir = "../../test/free_space_no_file"
+	config.Config.HomeDir = "../../test/free_space_no_file"
 
 	expectedError := &os.PathError{}
 
@@ -73,9 +76,9 @@ func TestLoadFreeSpaceNoFile(t *testing.T) {
 }
 
 func TestLoadFreeSpaceBadVal(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres-free_space/config/config.json")
 	config.ReadConfigFile()
-	config.Config.CeresDir = "../../test/free_space_bad_val"
+	config.Config.HomeDir = "../../test/free_space_bad_val"
 
 	expectedError := &json.SyntaxError{}
 
@@ -87,20 +90,20 @@ func TestLoadFreeSpaceBadVal(t *testing.T) {
 }
 
 func TestWriteFreeSpace(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres-free_space/config/config.json")
 	config.ReadConfigFile()
 
 	LoadFreeSpace()
 
-	byteExpectedContents, _ := os.ReadFile("../../test/.ceres/free_space.json")
+	byteExpectedContents, _ := os.ReadFile("../../test/.ceres-free_space/free_space.json")
 	expectedContents := string(byteExpectedContents)
 
 	WriteFreeSpace()
 
-	byteContents, _ := os.ReadFile("../../test/.ceres/free_space.json")
+	byteContents, _ := os.ReadFile("../../test/.ceres-free_space/free_space.json")
 	contents := string(byteContents)
 
-	if contents != expectedContents[:len(expectedContents)-1] {
-		t.Errorf("Incorrect schema contents, got: %v, want: %v", contents, expectedContents)
+	if a, e := strings.TrimSpace(contents), strings.TrimSpace(expectedContents); a != e {
+		t.Errorf("FreeSpace not as expected:\n%v", diff.LineDiff(a, e))
 	}
 }

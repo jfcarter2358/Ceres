@@ -12,10 +12,10 @@ import (
 )
 
 func TestAdd(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
-	byteData, _ := os.ReadFile(config.Config.CeresDir + "/indices/db1/foo/foo/bar")
+	byteData, _ := os.ReadFile(config.Config.HomeDir + "/indices/db1/foo/foo/bar")
 
 	expectedData := string(byteData) + "1234-5678\n"
 	var expectedError error
@@ -31,7 +31,7 @@ func TestAdd(t *testing.T) {
 		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
 	}
 
-	byteData, _ = os.ReadFile(config.Config.CeresDir + "/indices/db1/foo/foo/bar")
+	byteData, _ = os.ReadFile(config.Config.HomeDir + "/indices/db1/foo/foo/bar")
 	data := string(byteData)
 
 	if data != expectedData {
@@ -40,7 +40,7 @@ func TestAdd(t *testing.T) {
 }
 
 func TestAddDirNotWritable(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config-not-writable.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config-not-writable.json")
 	config.ReadConfigFile()
 
 	var expectedError error
@@ -58,13 +58,13 @@ func TestAddDirNotWritable(t *testing.T) {
 }
 
 func TestAddFileNotWritable(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
 	var expectedError error
 	expectedError = &os.PathError{}
 
-	os.Chmod(config.Config.CeresDir+"/indices/db1/foo/foo", 0444)
+	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo", 0444)
 
 	inputInterface := make(map[string]interface{})
 	inputData := "{\"foo\":\"bar\",\"hello\":1,\"world\":false,\".id\":\"1234-5678\"}"
@@ -72,7 +72,7 @@ func TestAddFileNotWritable(t *testing.T) {
 
 	err := Add("db1", "foo", inputInterface)
 
-	os.Chmod(config.Config.CeresDir+"/indices/db1/foo/foo", 0755)
+	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo", 0755)
 
 	if !errors.As(err, &expectedError) {
 		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
@@ -80,7 +80,7 @@ func TestAddFileNotWritable(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
 	var expectedError error
@@ -98,7 +98,7 @@ func TestDelete(t *testing.T) {
 }
 
 func TestDeleteStillWithContents(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
 	var expectedError error
@@ -118,7 +118,7 @@ func TestDeleteStillWithContents(t *testing.T) {
 }
 
 func TestDeleteReadFileErr(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
 	var expectedError error
@@ -130,11 +130,11 @@ func TestDeleteReadFileErr(t *testing.T) {
 
 	Add("db1", "foo", inputInterface)
 
-	os.Chmod(config.Config.CeresDir+"/indices/db1/foo/foo", 0444)
+	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo", 0444)
 
 	err := Delete("db1", "foo", inputInterface)
 
-	os.Chmod(config.Config.CeresDir+"/indices/db1/foo/foo", 0755)
+	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo", 0755)
 
 	if !errors.As(err, &expectedError) {
 		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
@@ -142,7 +142,7 @@ func TestDeleteReadFileErr(t *testing.T) {
 }
 
 func TestDeleteErr(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
 	var expectedError error
@@ -154,11 +154,11 @@ func TestDeleteErr(t *testing.T) {
 
 	Add("db1", "foo", inputInterface)
 
-	os.Chmod(config.Config.CeresDir+"/indices/db1/foo/foo2", 0555)
+	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo2", 0555)
 
 	err := Delete("db1", "foo", inputInterface)
 
-	os.Chmod(config.Config.CeresDir+"/indices/db1/foo/foo2", 0755)
+	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo2", 0755)
 
 	if !errors.As(err, &expectedError) {
 		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
@@ -166,7 +166,7 @@ func TestDeleteErr(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
 	expectedData := "1234-5678\n"
@@ -187,7 +187,7 @@ func TestUpdate(t *testing.T) {
 		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
 	}
 
-	byteData, _ := os.ReadFile(config.Config.CeresDir + "/indices/db1/foo/foo/baz")
+	byteData, _ := os.ReadFile(config.Config.HomeDir + "/indices/db1/foo/foo/baz")
 	data := string(byteData)
 
 	if data != expectedData {
@@ -196,7 +196,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestUpdateErr1(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
 	var expectedError error
@@ -211,11 +211,11 @@ func TestUpdateErr1(t *testing.T) {
 
 	Add("db1", "foo", oldInterface)
 
-	os.Chmod(config.Config.CeresDir+"/indices/db1/foo/foo2", 0555)
+	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo2", 0555)
 
 	err := Update("db1", "foo", oldInterface, newInterface)
 
-	os.Chmod(config.Config.CeresDir+"/indices/db1/foo/foo2", 0755)
+	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo2", 0755)
 
 	if !errors.As(err, &expectedError) {
 		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
@@ -223,7 +223,7 @@ func TestUpdateErr1(t *testing.T) {
 }
 
 func TestUpdateErr2(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
 	var expectedError error
@@ -238,11 +238,11 @@ func TestUpdateErr2(t *testing.T) {
 
 	Add("db1", "foo", oldInterface)
 
-	os.Chmod(config.Config.CeresDir+"/indices/db1/foo/foo2", 0444)
+	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo2", 0444)
 
 	err := Update("db1", "foo", oldInterface, newInterface)
 
-	os.Chmod(config.Config.CeresDir+"/indices/db1/foo/foo2", 0755)
+	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo2", 0755)
 
 	if !errors.As(err, &expectedError) {
 		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
@@ -250,10 +250,10 @@ func TestUpdateErr2(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
-	byteData, _ := os.ReadFile(config.Config.CeresDir + "/indices/db1/foo/foo/bar")
+	byteData, _ := os.ReadFile(config.Config.HomeDir + "/indices/db1/foo/foo/bar")
 	expectedIndices := strings.Split(string(byteData), "\n")
 	expectedIndices[len(expectedIndices)-1] = "1234-5678"
 	var expectedError error
@@ -277,7 +277,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestGetErr(t *testing.T) {
-	os.Setenv("CERES_CONFIG", "../../test/.ceres/config/config.json")
+	os.Setenv("CERES_CONFIG_PATH", "../../test/.ceres/config/config.json")
 	config.ReadConfigFile()
 
 	expectedIndices := []string{}
@@ -292,11 +292,11 @@ func TestGetErr(t *testing.T) {
 	Add("db1", "foo", oldInterface)
 	stringVal := fmt.Sprintf("%v", "baz")
 
-	os.Chmod(config.Config.CeresDir+"/indices/db1/foo/foo2", 0444)
+	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo2", 0444)
 
 	indices, err := Get("db1", "foo", "foo2", stringVal)
 
-	os.Chmod(config.Config.CeresDir+"/indices/db1/foo/foo2", 0755)
+	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo2", 0755)
 
 	if !errors.As(err, &expectedError) {
 		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
@@ -317,7 +317,7 @@ func TestRemoveIndex(t *testing.T) {
 }
 
 func TestAll(t *testing.T) {
-	byteData, _ := os.ReadFile(config.Config.CeresDir + "/indices/db1/foo/all")
+	byteData, _ := os.ReadFile(config.Config.HomeDir + "/indices/db1/foo/all")
 	expectedData := strings.Split(string(byteData), "\n")
 	expectedData = expectedData[:len(expectedData)-1]
 	data, _ := All("db1", "foo")

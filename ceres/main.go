@@ -97,7 +97,7 @@ func handleQuery(query queue.QueueObject) ([]map[string]interface{}, error) {
 		if err := auth.ProtectWrite(action); err != nil {
 			return nil, err
 		}
-		data, err := manager.ProcessAction(action, previousIDs)
+		data, err := manager.ProcessAction(action, previousIDs, false)
 		if err != nil {
 			return nil, err
 		}
@@ -155,24 +155,10 @@ func handleConnection(c net.Conn) {
 			dataString += "EOD"
 			c.Write([]byte(dataString))
 		} else {
-			if len(queueObject.Data) > 0 {
-				if _, ok := queueObject.Data[0]["count"]; ok {
-					dataByte, _ := json.Marshal(queueObject.Data[0])
-					dataString := string(dataByte)
-					dataString += "EOD"
-					c.Write([]byte(dataString))
-				} else {
-					dataByte, _ := json.Marshal(queueObject.Data)
-					dataString := string(dataByte)
-					dataString += "EOD"
-					c.Write([]byte(dataString))
-				}
-			} else {
-				dataByte, _ := json.Marshal(queueObject.Data)
-				dataString := string(dataByte)
-				dataString += "EOD"
-				c.Write([]byte(dataString))
-			}
+			dataByte, _ := json.Marshal(queueObject.Data)
+			dataString := string(dataByte)
+			dataString += "EOD"
+			c.Write([]byte(dataString))
 		}
 	}
 	c.Close()
