@@ -1,8 +1,0 @@
-{
-    "log-level": "trace",
-    "home-dir": ".ceres",
-    "data-dir": ".ceres/data",
-    "index-dir": ".ceres/indices",
-    "storage-line-limit": 16384,
-    "port": 7437
-}

@@ -3,16 +3,13 @@ from ceresdb_python import Connection
 import json
 import pytest
 
-CERES_USERNAME="ceres"
-CERES_PASSWORD="ceres"
-CERES_HOST="localhost"
-CERES_PORT=7437
-
-def test_version():
-    assert __version__ == '0.1.0'
+CERESDB_USERNAME="ceresdb"
+CERESDB_PASSWORD="ceresdb"
+CERESDB_HOST="localhost"
+CERESDB_PORT=7437
 
 def test_database():
-    conn = Connection(CERES_USERNAME, CERES_PASSWORD, CERES_HOST, CERES_PORT)
+    conn = Connection(CERESDB_USERNAME, CERESDB_PASSWORD, CERESDB_HOST, CERESDB_PORT)
     # Delete resources
     conn.query("delete database foo")
 
@@ -41,7 +38,7 @@ def test_database():
     assert data == expected_data
 
 def test_collection():
-    conn = Connection(CERES_USERNAME, CERES_PASSWORD, CERES_HOST, CERES_PORT)
+    conn = Connection(CERESDB_USERNAME, CERESDB_PASSWORD, CERESDB_HOST, CERESDB_PORT)
     # Delete resources
     conn.query("delete database foo")
     # Create resources
@@ -87,7 +84,7 @@ def test_collection():
     conn.query("delete database foo")
 
 def test_record():
-    conn = Connection(CERES_USERNAME, CERES_PASSWORD, CERES_HOST, CERES_PORT)
+    conn = Connection(CERESDB_USERNAME, CERESDB_PASSWORD, CERESDB_HOST, CERESDB_PORT)
     # Delete resources
     conn.query("delete database foo")
     # Create resources
@@ -152,7 +149,7 @@ def test_record():
     conn.query("delete database foo")
 
 def test_permit():
-    conn = Connection(CERES_USERNAME, CERES_PASSWORD, CERES_HOST, CERES_PORT)
+    conn = Connection(CERESDB_USERNAME, CERESDB_PASSWORD, CERESDB_HOST, CERESDB_PORT)
     # Delete resources
     conn.query("delete database foo")
     # Create resources
@@ -161,14 +158,14 @@ def test_permit():
 
     # Get permit when none exist
     expected_data = [
-        {"username": "ceres", "role": "ADMIN"},
+        {"username": "ceresdb", "role": "ADMIN"},
     ]
     data = conn.query("get permit foo [\"username\",\"role\"]")
     assert data == expected_data
 
     # Post permit
     expected_data = [
-        {"username": "ceres", "role": "ADMIN"},
+        {"username": "ceresdb", "role": "ADMIN"},
         {"username": "readonly", "role": "READ"}
     ]
     input_data = [
@@ -181,12 +178,12 @@ def test_permit():
     # Verify permission check
     with pytest.raises(Exception):
         input_data = {'role':'STRING','username':'STRING'}
-        conn_readonly = Connection("readonly", "readonly", CERES_HOST, CERES_PORT)
+        conn_readonly = Connection("readonly", "readonly", CERESDB_HOST, CERESDB_PORT)
         conn_readonly.query(f"post collection foo.bar {json.dumps(input_data)}")
 
     # Put permit
     expected_data = [
-        {"username": "ceres", "role": "ADMIN"},
+        {"username": "ceresdb", "role": "ADMIN"},
         {"username": "readonly", "role": "WRITE"}
     ]
     input_data = conn.query(f"get permit foo | filter username = \"readonly\"")[0]
@@ -197,9 +194,9 @@ def test_permit():
 
     # Delete permit
     expected_data = [
-        {"username": "ceres", "role": "ADMIN"},
+        {"username": "ceresdb", "role": "ADMIN"},
     ]
-    input_data = [datum[".id"] for datum in conn.query("get permit foo .id | filter username != \"ceres\"")]
+    input_data = [datum[".id"] for datum in conn.query("get permit foo .id | filter username != \"ceresdb\"")]
     conn.query(f"delete permit foo {json.dumps(input_data)}")
     data = conn.query("get permit foo [\"username\",\"role\"] | ORDERASC username")
     assert data == expected_data
@@ -209,21 +206,21 @@ def test_permit():
     conn.query("delete database foo")
 
 def test_user():
-    conn = Connection(CERES_USERNAME, CERES_PASSWORD, CERES_HOST, CERES_PORT)
+    conn = Connection(CERESDB_USERNAME, CERESDB_PASSWORD, CERESDB_HOST, CERESDB_PORT)
     # Delete resources
-    input_data = [datum[".id"] for datum in conn.query("get user .id | filter username != \"ceres\"")]
+    input_data = [datum[".id"] for datum in conn.query("get user .id | filter username != \"ceresdb\"")]
     conn.query(f"delete user {json.dumps(input_data)}")
 
     # Get user when none exist
     expected_data = [
-        {"username": "ceres", "role": "ADMIN"},
+        {"username": "ceresdb", "role": "ADMIN"},
     ]
     data = conn.query("get user [\"username\",\"role\"]")
     assert data == expected_data
 
     # Post user
     expected_data = [
-        {"username": "ceres", "role": "ADMIN"},
+        {"username": "ceresdb", "role": "ADMIN"},
         {"username": "readonly", "role": "READ"}
     ]
     input_data = [
@@ -236,13 +233,13 @@ def test_user():
     # Verify permission check
     with pytest.raises(Exception):
         input_data = {'role':'STRING','username':'STRING'}
-        conn_readonly = Connection("readonly", "readonly", CERES_HOST, CERES_PORT)
+        conn_readonly = Connection("readonly", "readonly", CERESDB_HOST, CERESDB_PORT)
         conn_readonly.query(f"post collection foo.bar {json.dumps(input_data)}")
 
     # Put user
     expected_data = [
         {"username": "readonly", "role": "WRITE"},
-        {"username": "ceres", "role": "ADMIN"}
+        {"username": "ceresdb", "role": "ADMIN"}
     ]
     input_data = conn.query(f"get user | filter username = \"readonly\"")[0]
     input_data["role"] = "WRITE"
@@ -253,9 +250,9 @@ def test_user():
 
     # Delete user
     expected_data = [
-        {"username": "ceres", "role": "ADMIN"},
+        {"username": "ceresdb", "role": "ADMIN"},
     ]
-    input_data = [datum[".id"] for datum in conn.query("get user .id | filter username != \"ceres\"")]
+    input_data = [datum[".id"] for datum in conn.query("get user .id | filter username != \"ceresdb\"")]
     conn.query(f"delete user {json.dumps(input_data)}")
     data = conn.query("get user [\"username\",\"role\"] | ORDERASC username")
     assert data == expected_data

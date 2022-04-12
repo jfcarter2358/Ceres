@@ -1,8 +1,0 @@
-{
-    "log-level": "debug",
-    "home-dir": "../test/.ceres-not-writable",
-    "data-dir": "../test/.ceres-not-writable/data",
-    "index-dir": "../test/.ceres-not-writable/indices",
-    "storage-line-limit": 32,
-    "port": 7437
-}

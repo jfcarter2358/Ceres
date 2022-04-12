@@ -1,14 +1,22 @@
 FROM golang:1.18.0-alpine
 
-WORKDIR /ceres-build
-COPY ceres /ceres-build
-RUN env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o ceres
+WORKDIR /ceresdb-build
+COPY ceresdb /ceresdb-build
+RUN env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o ceresdb
 
 FROM alpine:latest  
-WORKDIR /ceres
-COPY --from=0 /ceres-build/ceres ./
-COPY template /ceres
 
-ENV CERES_CONFIG=/ceres/.ceres/config/config.json
+RUN adduser --disabled-password ceresdb
 
-CMD ["./ceres"]
+WORKDIR /home/ceresdb
+
+COPY --from=0 /ceresdb-build/ceresdb ./
+COPY template /home/ceresdb
+
+RUN chown -R ceresdb:ceresdb /home/ceresdb
+
+USER ceresdb
+
+ENV CERESDB_CONFIG=/home/ceresdb/.ceresdb/config/config.json
+
+CMD ["./ceresdb"]

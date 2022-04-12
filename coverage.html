@@ -55,25 +55,27 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">ceres/aql/aql.go (100.0%)</option>
+				<option value="file0">ceresdb/aql/aql.go (100.0%)</option>
 				
-				<option value="file1">ceres/collection/collection.go (86.6%)</option>
+				<option value="file1">ceresdb/collection/collection.go (86.6%)</option>
 				
-				<option value="file2">ceres/config/config.go (91.7%)</option>
+				<option value="file2">ceresdb/config/config.go (82.0%)</option>
 				
-				<option value="file3">ceres/cursor/cursor.go (95.6%)</option>
+				<option value="file3">ceresdb/cursor/cursor.go (95.6%)</option>
 				
-				<option value="file4">ceres/database/database.go (82.9%)</option>
+				<option value="file4">ceresdb/database/database.go (82.9%)</option>
 				
-				<option value="file5">ceres/freespace/freespace.go (100.0%)</option>
+				<option value="file5">ceresdb/freespace/freespace.go (100.0%)</option>
 				
-				<option value="file6">ceres/index/index.go (93.2%)</option>
+				<option value="file6">ceresdb/index/index.go (93.2%)</option>
 				
-				<option value="file7">ceres/permit/permit.go (11.1%)</option>
+				<option value="file7">ceresdb/permit/permit.go (100.0%)</option>
 				
-				<option value="file8">ceres/schema/schema.go (100.0%)</option>
+				<option value="file8">ceresdb/schema/schema.go (100.0%)</option>
 				
-				<option value="file9">ceres/utils/utils.go (86.5%)</option>
+				<option value="file9">ceresdb/user/user.go (100.0%)</option>
+				
+				<option value="file10">ceresdb/utils/utils.go (86.5%)</option>
 				
 				</select>
 			</div>
@@ -91,8 +93,8 @@
 package aql
 
 import (
-        "ceres/config"
-        "ceres/utils"
+        "ceresdb/config"
+        "ceresdb/utils"
         "encoding/json"
         "errors"
         "fmt"
@@ -766,9 +768,9 @@ func Parse(input string) ([]Action, error) <span class="cov8" title="1">{
 		<pre class="file" id="file1" style="display: none">package collection
 
 import (
-        "ceres/config"
-        "ceres/freespace"
-        "ceres/schema"
+        "ceresdb/config"
+        "ceresdb/freespace"
+        "ceresdb/schema"
         "errors"
         "io/ioutil"
         "os"
@@ -881,17 +883,20 @@ import (
         "encoding/json"
         "io/ioutil"
         "os"
+        "os/user"
+        "path/filepath"
         "reflect"
         "strconv"
+        "strings"
 )
 
 type ConfigObject struct {
-        LogLevel         string `json:"log-level" binding:"required" env:"CERES_LOG_LEVEL"`
-        HomeDir          string `json:"home-dir" binding:"required" env:"CERES_HOME_DIR"`
-        DataDir          string `json:"data-dir" binding:"required" env:"CERES_DATA_DIR"`
-        IndexDir         string `json:"index-dir" binding:"required" env:"CERES_INDEX_DIR"`
-        StorageLineLimit int    `json:"storage-line-limit" binding:"required" env:"CERES_STORAGE_LINE_LIMIT"`
-        Port             int    `json:"port" binding:"required" env:"CERES_PORT"`
+        LogLevel         string `json:"log-level" binding:"required" env:"CERESDB_LOG_LEVEL"`
+        HomeDir          string `json:"home-dir" binding:"required" env:"CERESDB_HOME_DIR"`
+        DataDir          string `json:"data-dir" binding:"required" env:"CERESDB_DATA_DIR"`
+        IndexDir         string `json:"index-dir" binding:"required" env:"CERESDB_INDEX_DIR"`
+        StorageLineLimit int    `json:"storage-line-limit" binding:"required" env:"CERESDB_STORAGE_LINE_LIMIT"`
+        Port             int    `json:"port" binding:"required" env:"CERESDB_PORT"`
 }
 
 var Config ConfigObject
@@ -899,9 +904,9 @@ var Config ConfigObject
 func ReadConfigFile() *ConfigObject <span class="cov8" title="1">{
 
         // Set default path if we are not passed one
-        path := os.Getenv("CERES_CONFIG_PATH")
+        path := os.Getenv("CERESDB_CONFIG_PATH")
         if path == "" </span><span class="cov8" title="1">{
-                path = ".ceres/config/config.json"
+                path = ".ceresdb/config/config.json"
         }</span>
 
         // Open our jsonFile
@@ -978,7 +983,27 @@ func ReadConfigFile() *ConfigObject <span class="cov8" title="1">{
 
         <span class="cov8" title="1">defer jsonFile.Close()
 
-        return &amp;Config</span>
+        usr, _ := user.Current()
+        dir := usr.HomeDir
+
+        // Expand home directory
+        if Config.HomeDir == "~" </span><span class="cov0" title="0">{
+                Config.HomeDir = dir
+        }</span> else<span class="cov8" title="1"> if strings.HasPrefix(Config.HomeDir, "~/") </span><span class="cov0" title="0">{
+                Config.HomeDir = filepath.Join(dir, Config.HomeDir[2:])
+        }</span>
+        <span class="cov8" title="1">if Config.DataDir == "~" </span><span class="cov0" title="0">{
+                Config.DataDir = dir
+        }</span> else<span class="cov8" title="1"> if strings.HasPrefix(Config.DataDir, "~/") </span><span class="cov0" title="0">{
+                Config.DataDir = filepath.Join(dir, Config.DataDir[2:])
+        }</span>
+        <span class="cov8" title="1">if Config.IndexDir == "~" </span><span class="cov0" title="0">{
+                Config.IndexDir = dir
+        }</span> else<span class="cov8" title="1"> if strings.HasPrefix(Config.IndexDir, "~/") </span><span class="cov0" title="0">{
+                Config.IndexDir = filepath.Join(dir, Config.IndexDir[2:])
+        }</span>
+
+        <span class="cov8" title="1">return &amp;Config</span>
 }
 
 func getAttr(obj interface{}, fieldName string) reflect.Value <span class="cov8" title="1">{
@@ -1099,11 +1124,11 @@ func Advance(lowerBound, upperBound int) <span class="cov8" title="1">{
 		<pre class="file" id="file4" style="display: none">package database
 
 import (
-        "ceres/collection"
-        "ceres/config"
-        "ceres/freespace"
-        "ceres/record"
-        "ceres/schema"
+        "ceresdb/collection"
+        "ceresdb/config"
+        "ceresdb/freespace"
+        "ceresdb/record"
+        "ceresdb/schema"
         "errors"
         "io/ioutil"
         "os"
@@ -1156,7 +1181,7 @@ func Post(database string) error <span class="cov8" title="1">{
         schema.WriteSchema()
         if database != "_auth" </span><span class="cov8" title="1">{
                 collection.Post(database, "_users", map[string]interface{}{"username": "STRING", "role": "STRING"})
-                inputData := []map[string]interface{}{{"username": "ceres", "role": "ADMIN"}}
+                inputData := []map[string]interface{}{{"username": "ceresdb", "role": "ADMIN"}}
                 err := record.Post(database, "_users", inputData)
                 if err != nil </span><span class="cov0" title="0">{
                         return err
@@ -1175,7 +1200,7 @@ func Put() error <span class="cov8" title="1">{
 package freespace
 
 import (
-        "ceres/config"
+        "ceresdb/config"
         "encoding/json"
         "io/ioutil"
         "os"
@@ -1296,7 +1321,7 @@ func WriteFreeSpace() error <span class="cov8" title="1">{
 package index
 
 import (
-        "ceres/config"
+        "ceresdb/config"
         "fmt"
         "os"
         "path/filepath"
@@ -1423,16 +1448,16 @@ func linearSearch(s []string, val string) int <span class="cov8" title="1">{
 		<pre class="file" id="file7" style="display: none">package permit
 
 import (
-        "ceres/record"
+        "ceresdb/record"
         "errors"
 )
 
-func Delete(database string, ids []string) error <span class="cov0" title="0">{
+func Delete(database string, ids []string) error <span class="cov8" title="1">{
         err := record.Delete(database, "_users", ids)
         return err
 }</span>
 
-func Get(database string, ids []string) ([]map[string]interface{}, error) <span class="cov0" title="0">{
+func Get(database string, ids []string) ([]map[string]interface{}, error) <span class="cov8" title="1">{
         data, err := record.Get(database, "_users", ids)
         return data, err
 }</span>
@@ -1441,12 +1466,12 @@ func Patch() error <span class="cov8" title="1">{
         return errors.New("PATCH action is unsupported on resource PERMIT")
 }</span>
 
-func Post(database string, data []map[string]interface{}) error <span class="cov0" title="0">{
+func Post(database string, data []map[string]interface{}) error <span class="cov8" title="1">{
         err := record.Post(database, "_users", data)
         return err
 }</span>
 
-func Put(database string, data []map[string]interface{}) error <span class="cov0" title="0">{
+func Put(database string, data []map[string]interface{}) error <span class="cov8" title="1">{
         err := record.Put(database, "_users", data)
         return err
 }</span>
@@ -1457,8 +1482,8 @@ func Put(database string, data []map[string]interface{}) error <span class="cov0
 package schema
 
 import (
-        "ceres/config"
-        "ceres/utils"
+        "ceresdb/config"
+        "ceresdb/utils"
         "encoding/json"
         "errors"
         "fmt"
@@ -1613,7 +1638,39 @@ func ValidateDataAgainstSchema(database, collection string, data []map[string]in
 }
 </pre>
 		
-		<pre class="file" id="file9" style="display: none">// utils.go
+		<pre class="file" id="file9" style="display: none">package user
+
+import (
+        "ceresdb/record"
+        "errors"
+)
+
+func Delete(ids []string) error <span class="cov8" title="1">{
+        err := record.Delete("_auth", "_users", ids)
+        return err
+}</span>
+
+func Get(ids []string) ([]map[string]interface{}, error) <span class="cov8" title="1">{
+        data, err := record.Get("_auth", "_users", ids)
+        return data, err
+}</span>
+
+func Patch() error <span class="cov8" title="1">{
+        return errors.New("PATCH action is unsupported on resource USER")
+}</span>
+
+func Post(data []map[string]interface{}) error <span class="cov8" title="1">{
+        err := record.Post("_auth", "_users", data)
+        return err
+}</span>
+
+func Put(data []map[string]interface{}) error <span class="cov8" title="1">{
+        err := record.Put("_auth", "_users", data)
+        return err
+}</span>
+</pre>
+		
+		<pre class="file" id="file10" style="display: none">// utils.go
 
 package utils
 

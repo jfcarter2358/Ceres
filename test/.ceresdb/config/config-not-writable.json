@@ -1,0 +1,8 @@
+{
+    "log-level": "debug",
+    "home-dir": "../test/.ceresdb-not-writable",
+    "data-dir": "../test/.ceresdb-not-writable/data",
+    "index-dir": "../test/.ceresdb-not-writable/indices",
+    "storage-line-limit": 32,
+    "port": 7437
+}

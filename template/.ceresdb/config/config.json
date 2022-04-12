@@ -1,0 +1,8 @@
+{
+    "log-level": "info",
+    "home-dir": "~/.ceresdb",
+    "data-dir": "~/.ceresdb/data",
+    "index-dir": "~/.ceresdb/indices",
+    "storage-line-limit": 16384,
+    "port": 7437
+}
