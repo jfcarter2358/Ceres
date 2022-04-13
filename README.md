@@ -296,8 +296,9 @@ Schemas take the form of a dictionary with each key being a field in the corresp
 - `INT`
 - `FLOAT`
 - `BOOL`
-- `LIST`
-- `DICT`
+- `LIST` (not searchable by filters or able to be ordered)
+- `DICT` (not searchable by filters or able to be ordered)
+- `ANY` (not searchable by filters or able to be ordered)
 
 # Access Roles
 

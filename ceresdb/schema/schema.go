@@ -101,10 +101,10 @@ func WriteSchema() error {
 }
 
 func ValidateSchemaCollection(schemaCollection map[string]string) error {
-	validTypes := []string{"INT", "BOOL", "FLOAT", "STRING", "DICT", "LIST"}
+	validTypes := []string{"INT", "BOOL", "FLOAT", "STRING", "DICT", "LIST", "ANY"}
 	for _, val := range schemaCollection {
 		if !utils.Contains(validTypes, val) {
-			return errors.New(fmt.Sprintf("Invalid schema type: %v, valid types are 'INT', 'BOOL', 'FLOAT', 'STRING', 'DICT', or 'LIST'", val))
+			return errors.New(fmt.Sprintf("Invalid schema type: %v, valid types are 'INT', 'BOOL', 'FLOAT', 'STRING', 'DICT', 'LIST', or 'ANY'", val))
 		}
 	}
 	return nil

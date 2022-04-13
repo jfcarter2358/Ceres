@@ -14,8 +14,9 @@ field. Allowed datatypes are:
 * ``INT``
 * ``FLOAT``
 * ``BOOL``
-* ``LIST``
-* ``DICT``
+* ``LIST`` (not searchable by filters or able to be ordered)
+* ``DICT`` (not searchable by filters or able to be ordered)
+* ``ANY`` (not searchable by filters or able to be ordered)
 
 An example schema is shown below:
 
@@ -27,5 +28,6 @@ An example schema is shown below:
       "c": "FLOAT",
       "d": "BOOL",
       "e": "LIST",
-      "f": "DICT"
+      "f": "DICT",
+      "g": "ANY"
    }

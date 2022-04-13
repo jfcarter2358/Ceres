@@ -32,7 +32,6 @@ func main() {
 	freespace.LoadFreeSpace()
 	schema.LoadSchema()
 	queue.InitQueue()
-	fmt.Println(config.Config)
 
 	logging.TRACE("Ensuring data directory exists")
 	os.MkdirAll(config.Config.DataDir, 0755)

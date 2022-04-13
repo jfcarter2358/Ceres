@@ -45,6 +45,7 @@ docs:
 
 publish-docker: clean build-docker  ## Build and publish the CeresDB docker image
 	docker tag ceresdb jfcarter2358/ceresdb:$$(cat ceresdb/VERSION)
+	docker push jfcarter2358/ceresdb:$$(cat ceresdb/VERSION)
 
 run-docker:  ## Run CeresDB in Docker
 	docker run -p 7437:7437 ceresdb
