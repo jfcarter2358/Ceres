@@ -25,7 +25,7 @@ func TestAdd(t *testing.T) {
 	inputData := "{\"foo\":\"bar\",\"hello\":1,\"world\":false,\".id\":\"1234-5678\"}"
 	json.Unmarshal([]byte(inputData), &inputInterface)
 
-	err := Add("db1", "foo", inputInterface)
+	err := Add("db1", "foo", inputInterface, map[string]string{"foo": "STRING", "hello": "INT", "world": "BOOL"})
 
 	if err != expectedError {
 		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
@@ -50,7 +50,7 @@ func TestAddDirNotWritable(t *testing.T) {
 	inputData := "{\"foo\":\"bar\",\"hello\":1,\"world\":false,\".id\":\"1234-5678\"}"
 	json.Unmarshal([]byte(inputData), &inputInterface)
 
-	err := Add("db1", "foo", inputInterface)
+	err := Add("db1", "foo", inputInterface, map[string]string{"foo": "STRING", "hello": "INT", "world": "BOOL"})
 
 	if !errors.As(err, &expectedError) {
 		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
@@ -70,7 +70,7 @@ func TestAddFileNotWritable(t *testing.T) {
 	inputData := "{\"foo\":\"bar\",\"hello\":1,\"world\":false,\".id\":\"1234-5678\"}"
 	json.Unmarshal([]byte(inputData), &inputInterface)
 
-	err := Add("db1", "foo", inputInterface)
+	err := Add("db1", "foo", inputInterface, map[string]string{"foo": "STRING", "hello": "INT", "world": "BOOL"})
 
 	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo", 0755)
 
@@ -90,7 +90,7 @@ func TestDelete(t *testing.T) {
 	inputData := "{\"foo\":\"bar\",\"hello\":1,\"world\":false,\".id\":\"1234-5678\"}"
 	json.Unmarshal([]byte(inputData), &inputInterface)
 
-	err := Delete("db1", "foo", inputInterface)
+	err := Delete("db1", "foo", inputInterface, map[string]string{"foo": "STRING", "hello": "INT", "world": "BOOL"})
 
 	if err != expectedError {
 		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
@@ -108,9 +108,9 @@ func TestDeleteStillWithContents(t *testing.T) {
 	inputData := "{\"foo\":\"bar\",\"hello\":1,\"world\":false,\".id\":\"0123-4567\"}"
 	json.Unmarshal([]byte(inputData), &inputInterface)
 
-	Add("db1", "foo", inputInterface)
+	Add("db1", "foo", inputInterface, map[string]string{"foo": "STRING", "hello": "INT", "world": "BOOL"})
 
-	err := Delete("db1", "foo", inputInterface)
+	err := Delete("db1", "foo", inputInterface, map[string]string{"foo": "STRING", "hello": "INT", "world": "BOOL"})
 
 	if err != expectedError {
 		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
@@ -128,11 +128,11 @@ func TestDeleteReadFileErr(t *testing.T) {
 	inputData := "{\"foo\":\"bar\",\"hello\":1,\"world\":false,\".id\":\"0123-4567\"}"
 	json.Unmarshal([]byte(inputData), &inputInterface)
 
-	Add("db1", "foo", inputInterface)
+	Add("db1", "foo", inputInterface, map[string]string{"foo": "STRING", "hello": "INT", "world": "BOOL"})
 
 	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo", 0444)
 
-	err := Delete("db1", "foo", inputInterface)
+	err := Delete("db1", "foo", inputInterface, map[string]string{"foo": "STRING", "hello": "INT", "world": "BOOL"})
 
 	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo", 0755)
 
@@ -152,11 +152,11 @@ func TestDeleteErr(t *testing.T) {
 	inputData := "{\"foo2\":\"bar\",\"hello\":1,\"world\":false,\".id\":\"0123-4567\"}"
 	json.Unmarshal([]byte(inputData), &inputInterface)
 
-	Add("db1", "foo", inputInterface)
+	Add("db1", "foo", inputInterface, map[string]string{"foo": "STRING", "hello": "INT", "world": "BOOL"})
 
 	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo2", 0555)
 
-	err := Delete("db1", "foo", inputInterface)
+	err := Delete("db1", "foo", inputInterface, map[string]string{"foo": "STRING", "hello": "INT", "world": "BOOL"})
 
 	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo2", 0755)
 
@@ -180,8 +180,8 @@ func TestUpdate(t *testing.T) {
 	json.Unmarshal([]byte(oldData), &oldInterface)
 	json.Unmarshal([]byte(newData), &newInterface)
 
-	Add("db1", "foo", oldInterface)
-	err := Update("db1", "foo", oldInterface, newInterface)
+	Add("db1", "foo", oldInterface, map[string]string{"foo": "STRING", "hello": "INT", "world": "BOOL"})
+	err := Update("db1", "foo", oldInterface, newInterface, map[string]string{"foo": "STRING", "hello": "INT", "world": "BOOL"})
 
 	if err != expectedError {
 		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
@@ -209,11 +209,11 @@ func TestUpdateErr1(t *testing.T) {
 	json.Unmarshal([]byte(oldData), &oldInterface)
 	json.Unmarshal([]byte(newData), &newInterface)
 
-	Add("db1", "foo", oldInterface)
+	Add("db1", "foo", oldInterface, map[string]string{"foo": "STRING", "hello": "INT", "world": "BOOL"})
 
 	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo2", 0555)
 
-	err := Update("db1", "foo", oldInterface, newInterface)
+	err := Update("db1", "foo", oldInterface, newInterface, map[string]string{"foo": "STRING", "hello": "INT", "world": "BOOL"})
 
 	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo2", 0755)
 
@@ -236,11 +236,11 @@ func TestUpdateErr2(t *testing.T) {
 	json.Unmarshal([]byte(oldData), &oldInterface)
 	json.Unmarshal([]byte(newData), &newInterface)
 
-	Add("db1", "foo", oldInterface)
+	Add("db1", "foo", oldInterface, map[string]string{"foo": "STRING", "hello": "INT", "world": "BOOL"})
 
 	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo2", 0444)
 
-	err := Update("db1", "foo", oldInterface, newInterface)
+	err := Update("db1", "foo", oldInterface, newInterface, map[string]string{"foo": "STRING", "hello": "INT", "world": "BOOL"})
 
 	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo2", 0755)
 
@@ -263,7 +263,7 @@ func TestGet(t *testing.T) {
 	oldData := "{\"foo\":\"bar\",\"hello\":1,\"world\":false,\".id\":\"1234-5678\"}"
 	json.Unmarshal([]byte(oldData), &oldInterface)
 
-	Add("db1", "foo", oldInterface)
+	Add("db1", "foo", oldInterface, map[string]string{"foo": "STRING", "hello": "INT", "world": "BOOL"})
 	stringVal := fmt.Sprintf("%v", "bar")
 	indices, err := Get("db1", "foo", "foo", stringVal)
 
@@ -289,7 +289,7 @@ func TestGetErr(t *testing.T) {
 	oldData := "{\"foo\":\"bar\",\"hello\":1,\"world\":false,\".id\":\"1234-5678\"}"
 	json.Unmarshal([]byte(oldData), &oldInterface)
 
-	Add("db1", "foo", oldInterface)
+	Add("db1", "foo", oldInterface, map[string]string{"foo": "STRING", "hello": "INT", "world": "BOOL"})
 	stringVal := fmt.Sprintf("%v", "baz")
 
 	os.Chmod(config.Config.HomeDir+"/indices/db1/foo/foo2", 0444)

@@ -67,11 +67,11 @@
 				
 				<option value="file5">ceresdb/freespace/freespace.go (100.0%)</option>
 				
-				<option value="file6">ceresdb/index/index.go (93.2%)</option>
+				<option value="file6">ceresdb/index/index.go (87.1%)</option>
 				
 				<option value="file7">ceresdb/permit/permit.go (100.0%)</option>
 				
-				<option value="file8">ceresdb/schema/schema.go (100.0%)</option>
+				<option value="file8">ceresdb/schema/schema.go (98.5%)</option>
 				
 				<option value="file9">ceresdb/user/user.go (100.0%)</option>
 				
@@ -1322,18 +1322,30 @@ package index
 
 import (
         "ceresdb/config"
+        "ceresdb/utils"
         "fmt"
         "os"
         "path/filepath"
         "strings"
 )
 
-func Add(database, collection string, datum map[string]interface{}) error <span class="cov8" title="1">{
+var InvalidSchemaTypes = []string{"DICT", "LIST", "ANY"}
+
+func Add(database, collection string, datum map[string]interface{}, schemaData map[string]string) error <span class="cov8" title="1">{
         for key, val := range datum </span><span class="cov8" title="1">{
-                if key == ".id" </span><span class="cov8" title="1">{
+                if utils.Contains(InvalidSchemaTypes, schemaData[key]) </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+                <span class="cov8" title="1">if key == ".id" </span><span class="cov8" title="1">{
                         continue</span>
                 }
                 <span class="cov8" title="1">if key == "password" &amp;&amp; database == "_auth" </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+                <span class="cov8" title="1">if _, ok := val.([]interface{}); ok </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+                <span class="cov8" title="1">if _, ok := val.(map[string]interface{}); ok </span><span class="cov0" title="0">{
                         continue</span>
                 }
                 <span class="cov8" title="1">stringVal := fmt.Sprintf("%v", val)
@@ -1341,7 +1353,7 @@ func Add(database, collection string, datum map[string]interface{}) error <span 
                 filePath := filepath.Join(dirPath, stringVal)
                 allPath := filepath.Join(config.Config.IndexDir, database, collection, "all")
                 if _, err := os.Stat(dirPath); os.IsNotExist(err) </span><span class="cov8" title="1">{
-                        err = os.Mkdir(dirPath, 0755)
+                        err = os.MkdirAll(dirPath, 0755)
                         if err != nil </span><span class="cov8" title="1">{
                                 return err
                         }</span>
@@ -1350,24 +1362,33 @@ func Add(database, collection string, datum map[string]interface{}) error <span 
                 if err != nil </span><span class="cov8" title="1">{
                         return err
                 }</span>
-                <span class="cov8" title="1">f.WriteString(datum[".id"].(string) + "\n")
-                f.Close()
+                <span class="cov8" title="1">_, err = f.WriteString(datum[".id"].(string) + "\n")
+                if err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+                <span class="cov8" title="1">f.Close()
                 f, err = os.OpenFile(allPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
                 if err != nil </span><span class="cov0" title="0">{
                         return err
                 }</span>
-                <span class="cov8" title="1">f.WriteString(datum[".id"].(string) + "\n")
-                f.Close()</span>
+                <span class="cov8" title="1">_, err = f.WriteString(datum[".id"].(string) + "\n")
+                if err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+                <span class="cov8" title="1">f.Close()</span>
         }
         <span class="cov8" title="1">return nil</span>
 }
 
-func Delete(database, collection string, datum map[string]interface{}) error <span class="cov8" title="1">{
+func Delete(database, collection string, datum map[string]interface{}, schemaData map[string]string) error <span class="cov8" title="1">{
         for key, val := range datum </span><span class="cov8" title="1">{
                 if key == ".id" </span><span class="cov8" title="1">{
                         continue</span>
                 }
                 <span class="cov8" title="1">if key == "password" &amp;&amp; database == "_auth" </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+                <span class="cov8" title="1">if utils.Contains(InvalidSchemaTypes, schemaData[key]) </span><span class="cov0" title="0">{
                         continue</span>
                 }
                 <span class="cov8" title="1">stringVal := fmt.Sprintf("%v", val)
@@ -1397,11 +1418,11 @@ func Delete(database, collection string, datum map[string]interface{}) error <sp
         <span class="cov8" title="1">return nil</span>
 }
 
-func Update(database, collection string, oldDatum, newDatum map[string]interface{}) error <span class="cov8" title="1">{
-        if err := Delete(database, collection, oldDatum); err != nil </span><span class="cov8" title="1">{
+func Update(database, collection string, oldDatum, newDatum map[string]interface{}, schemaData map[string]string) error <span class="cov8" title="1">{
+        if err := Delete(database, collection, oldDatum, schemaData); err != nil </span><span class="cov8" title="1">{
                 return err
         }</span>
-        <span class="cov8" title="1">if err := Add(database, collection, newDatum); err != nil </span><span class="cov8" title="1">{
+        <span class="cov8" title="1">if err := Add(database, collection, newDatum, schemaData); err != nil </span><span class="cov8" title="1">{
                 return err
         }</span>
         <span class="cov8" title="1">return nil</span>
@@ -1580,14 +1601,18 @@ func WriteSchema() error <span class="cov8" title="1">{
 }
 
 func ValidateSchemaCollection(schemaCollection map[string]string) error <span class="cov8" title="1">{
-        validTypes := []string{"INT", "BOOL", "FLOAT", "STRING", "DICT", "LIST"}
+        validTypes := []string{"INT", "BOOL", "FLOAT", "STRING", "DICT", "LIST", "ANY"}
         for _, val := range schemaCollection </span><span class="cov8" title="1">{
                 if !utils.Contains(validTypes, val) </span><span class="cov8" title="1">{
-                        return errors.New(fmt.Sprintf("Invalid schema type: %v, valid types are 'INT', 'BOOL', 'FLOAT', 'STRING', 'DICT', or 'LIST'", val))
+                        return errors.New(fmt.Sprintf("Invalid schema type: %v, valid types are 'INT', 'BOOL', 'FLOAT', 'STRING', 'DICT', 'LIST', or 'ANY'", val))
                 }</span>
         }
         <span class="cov8" title="1">return nil</span>
 }
+
+func Get(database, collection string) map[string]string <span class="cov0" title="0">{
+        return Schema.Databases[database].Collections[collection].Types
+}</span>
 
 func ValidateDataAgainstSchema(database, collection string, data []map[string]interface{}) error <span class="cov8" title="1">{
         schemaCollection := Schema.Databases[database].Collections[collection]
