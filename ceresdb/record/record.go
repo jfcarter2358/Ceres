@@ -61,7 +61,7 @@ func readData(dbIdent, colIdent, fileIdent string, blocks [][]int) ([]map[string
 	return output, nil
 }
 
-func writeData(dbIdent, colIdent, fileIdent string, blocks [][]int, data []map[string]interface{}) error {
+func writeData(dbIdent, colIdent, fileIdent string, blocks [][]int, data []map[string]interface{}, schemaData map[string]string) error {
 	blockIdx := 0
 	dataIdx := 0
 	dataLen := len(data)
@@ -85,7 +85,7 @@ func writeData(dbIdent, colIdent, fileIdent string, blocks [][]int, data []map[s
 			switch op {
 			case cursor.OpWrite:
 				newContents = append(newContents, dat)
-				index.Add(dbIdent, colIdent, data[dataIdx])
+				index.Add(dbIdent, colIdent, data[dataIdx], schemaData)
 				dataIdx += 1
 			case cursor.OpJump:
 				newContents = append(newContents, s+"\n")
@@ -109,7 +109,7 @@ func writeData(dbIdent, colIdent, fileIdent string, blocks [][]int, data []map[s
 	return nil
 }
 
-func overwriteData(dbIdent, colIdent, fileIdent string, blocks [][]int, data []map[string]interface{}) error {
+func overwriteData(dbIdent, colIdent, fileIdent string, blocks [][]int, data []map[string]interface{}, schemaData map[string]string) error {
 	blockIdx := 0
 	dataIdx := 0
 	dataLen := len(data)
@@ -132,7 +132,7 @@ func overwriteData(dbIdent, colIdent, fileIdent string, blocks [][]int, data []m
 			switch op {
 			case cursor.OpWrite:
 				newContents = append(newContents, dat)
-				index.Update(dbIdent, colIdent, datum, data[dataIdx])
+				index.Update(dbIdent, colIdent, datum, data[dataIdx], schemaData)
 				dataIdx += 1
 			case cursor.OpJump:
 				newContents = append(newContents, s+"\n")
@@ -156,7 +156,7 @@ func overwriteData(dbIdent, colIdent, fileIdent string, blocks [][]int, data []m
 	return nil
 }
 
-func patchData(dbIdent, colIdent, fileIdent string, blocks [][]int, data map[string]interface{}) error {
+func patchData(dbIdent, colIdent, fileIdent string, blocks [][]int, data map[string]interface{}, schemaData map[string]string) error {
 	blockIdx := 0
 	blockLen := len(blocks)
 	cursor.Initialize(blocks[0][0], blocks[0][1], cursor.ModePatch)
@@ -179,7 +179,7 @@ func patchData(dbIdent, colIdent, fileIdent string, blocks [][]int, data map[str
 			newContents = append(newContents, dat)
 			newDatum := make(map[string]interface{})
 			json.Unmarshal([]byte(dat), &newDatum)
-			index.Update(dbIdent, colIdent, datum, newDatum)
+			index.Update(dbIdent, colIdent, datum, newDatum, schemaData)
 		case cursor.OpJump:
 			newContents = append(newContents, s+"\n")
 		case cursor.OpNext:
@@ -202,7 +202,7 @@ func patchData(dbIdent, colIdent, fileIdent string, blocks [][]int, data map[str
 	return nil
 }
 
-func deleteData(dbIdent, colIdent, fileIdent string, blocks [][]int) error {
+func deleteData(dbIdent, colIdent, fileIdent string, blocks [][]int, schemaData map[string]string) error {
 	blockIdx := 0
 	blockLen := len(blocks)
 	cursor.Initialize(blocks[0][0], blocks[0][1], cursor.ModeDelete)
@@ -220,7 +220,7 @@ func deleteData(dbIdent, colIdent, fileIdent string, blocks [][]int) error {
 		switch op {
 		case cursor.OpDelete:
 			newContents = append(newContents, dat)
-			index.Delete(dbIdent, colIdent, datum)
+			index.Delete(dbIdent, colIdent, datum, schemaData)
 		case cursor.OpJump:
 			newContents = append(newContents, s+"\n")
 		case cursor.OpNext:
@@ -244,6 +244,8 @@ func deleteData(dbIdent, colIdent, fileIdent string, blocks [][]int) error {
 }
 
 func Delete(database, collection string, ids []string) error {
+	schemaData := schema.Get(database, collection)
+
 	toDelete := make(map[string][]int)
 
 	// Determine which IDs from which files should be read
@@ -267,7 +269,7 @@ func Delete(database, collection string, ids []string) error {
 	// Build up range blocks
 	for key, val := range toDelete {
 		blocks := utils.BuildRangeBlocks((val))
-		err := deleteData(database, collection, key, blocks)
+		err := deleteData(database, collection, key, blocks, schemaData)
 		if err != nil {
 			return err
 		}
@@ -326,6 +328,7 @@ func Post(database, collection string, data []map[string]interface{}) error {
 	if err := schema.ValidateDataAgainstSchema(database, collection, data); err != nil {
 		return err
 	}
+	schemaData := schema.Get(database, collection)
 
 	recordsRemaining := len(data)
 	toWrite := make(map[string]ToWriteStruct)
@@ -431,7 +434,7 @@ func Post(database, collection string, data []map[string]interface{}) error {
 	freespace.WriteFreeSpace()
 
 	for key, val := range toWrite {
-		err := writeData(database, collection, key, val.Blocks, val.Data)
+		err := writeData(database, collection, key, val.Blocks, val.Data, schemaData)
 		if err != nil {
 			return err
 		}
@@ -444,6 +447,7 @@ func Patch(database, collection string, ids []string, data map[string]interface{
 	if err := schema.ValidateDataAgainstSchema(database, collection, []map[string]interface{}{data}); err != nil {
 		return err
 	}
+	schemaData := schema.Get(database, collection)
 
 	toPatch := make(map[string][]int)
 
@@ -462,7 +466,7 @@ func Patch(database, collection string, ids []string, data map[string]interface{
 	// Build up range blocks
 	for key, val := range toPatch {
 		blocks := utils.BuildRangeBlocks((val))
-		err := patchData(database, collection, key, blocks, data)
+		err := patchData(database, collection, key, blocks, data, schemaData)
 		if err != nil {
 			return err
 		}
@@ -475,6 +479,7 @@ func Put(database, collection string, data []map[string]interface{}) error {
 	if err := schema.ValidateDataAgainstSchema(database, collection, data); err != nil {
 		return err
 	}
+	schemaData := schema.Get(database, collection)
 
 	toOverWrite := make(map[string]ToOverWriteStruct)
 
@@ -497,7 +502,7 @@ func Put(database, collection string, data []map[string]interface{}) error {
 	// Build up range blocks
 	for key, val := range toOverWrite {
 		blocks := utils.BuildRangeBlocks((val.Indices))
-		err := overwriteData(database, collection, key, blocks, val.Data)
+		err := overwriteData(database, collection, key, blocks, val.Data, schemaData)
 		if err != nil {
 			return err
 		}

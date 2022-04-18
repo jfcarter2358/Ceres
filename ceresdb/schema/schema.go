@@ -110,6 +110,10 @@ func ValidateSchemaCollection(schemaCollection map[string]string) error {
 	return nil
 }
 
+func Get(database, collection string) map[string]string {
+	return Schema.Databases[database].Collections[collection].Types
+}
+
 func ValidateDataAgainstSchema(database, collection string, data []map[string]interface{}) error {
 	schemaCollection := Schema.Databases[database].Collections[collection]
 	for idx, datum := range data {

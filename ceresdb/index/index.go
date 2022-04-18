@@ -4,18 +4,30 @@ package index
 
 import (
 	"ceresdb/config"
+	"ceresdb/utils"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-func Add(database, collection string, datum map[string]interface{}) error {
+var InvalidSchemaTypes = []string{"DICT", "LIST", "ANY"}
+
+func Add(database, collection string, datum map[string]interface{}, schemaData map[string]string) error {
 	for key, val := range datum {
+		if utils.Contains(InvalidSchemaTypes, schemaData[key]) {
+			continue
+		}
 		if key == ".id" {
 			continue
 		}
 		if key == "password" && database == "_auth" {
+			continue
+		}
+		if _, ok := val.([]interface{}); ok {
+			continue
+		}
+		if _, ok := val.(map[string]interface{}); ok {
 			continue
 		}
 		stringVal := fmt.Sprintf("%v", val)
@@ -23,7 +35,7 @@ func Add(database, collection string, datum map[string]interface{}) error {
 		filePath := filepath.Join(dirPath, stringVal)
 		allPath := filepath.Join(config.Config.IndexDir, database, collection, "all")
 		if _, err := os.Stat(dirPath); os.IsNotExist(err) {
-			err = os.Mkdir(dirPath, 0755)
+			err = os.MkdirAll(dirPath, 0755)
 			if err != nil {
 				return err
 			}
@@ -32,24 +44,33 @@ func Add(database, collection string, datum map[string]interface{}) error {
 		if err != nil {
 			return err
 		}
-		f.WriteString(datum[".id"].(string) + "\n")
+		_, err = f.WriteString(datum[".id"].(string) + "\n")
+		if err != nil {
+			return err
+		}
 		f.Close()
 		f, err = os.OpenFile(allPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			return err
 		}
-		f.WriteString(datum[".id"].(string) + "\n")
+		_, err = f.WriteString(datum[".id"].(string) + "\n")
+		if err != nil {
+			return err
+		}
 		f.Close()
 	}
 	return nil
 }
 
-func Delete(database, collection string, datum map[string]interface{}) error {
+func Delete(database, collection string, datum map[string]interface{}, schemaData map[string]string) error {
 	for key, val := range datum {
 		if key == ".id" {
 			continue
 		}
 		if key == "password" && database == "_auth" {
+			continue
+		}
+		if utils.Contains(InvalidSchemaTypes, schemaData[key]) {
 			continue
 		}
 		stringVal := fmt.Sprintf("%v", val)
@@ -79,11 +100,11 @@ func Delete(database, collection string, datum map[string]interface{}) error {
 	return nil
 }
 
-func Update(database, collection string, oldDatum, newDatum map[string]interface{}) error {
-	if err := Delete(database, collection, oldDatum); err != nil {
+func Update(database, collection string, oldDatum, newDatum map[string]interface{}, schemaData map[string]string) error {
+	if err := Delete(database, collection, oldDatum, schemaData); err != nil {
 		return err
 	}
-	if err := Add(database, collection, newDatum); err != nil {
+	if err := Add(database, collection, newDatum, schemaData); err != nil {
 		return err
 	}
 	return nil
