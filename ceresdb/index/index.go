@@ -7,7 +7,6 @@ import (
 	"ceresdb/utils"
 	"encoding/base64"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,9 +15,7 @@ import (
 var InvalidSchemaTypes = []string{"DICT", "LIST", "ANY"}
 
 func Add(database, collection string, datum map[string]interface{}, schemaData map[string]string) error {
-	log.Println("Adding indices")
 	for key, val := range datum {
-		log.Printf("Key: %v, value: %v", key, val)
 		if utils.Contains(InvalidSchemaTypes, schemaData[key]) {
 			continue
 		}

@@ -9,7 +9,7 @@ help: ## Display this help message.
 build-docker:  ## Build a CeresDB docker image
 	docker build -t ceresdb .
 
-build-local:  ## Build a local CeresDB binary
+build-local: clean  ## Build a local CeresDB binary
 	rm -rf dist || true
 	mkdir dist
 	cd ceresdb && env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o ceresdb
