@@ -13,6 +13,7 @@ import (
 	"ceresdb/schema"
 	"ceresdb/user"
 	"ceresdb/utils"
+	"encoding/base64"
 	"errors"
 	"os"
 	"path/filepath"
@@ -604,7 +605,8 @@ func doFilterBool(database, collection, key string, node aql.Node) ([]string, er
 	values := make(map[bool]string, 0)
 	keys := make([]bool, 0)
 	for _, value := range stringValues {
-		boolVal, _ := strconv.ParseBool(filepath.Base(value))
+		decodedVal, _ := base64.StdEncoding.DecodeString(filepath.Base(value))
+		boolVal, _ := strconv.ParseBool(string(decodedVal))
 		values[boolVal] = value
 		keys = append(keys, boolVal)
 	}
@@ -628,7 +630,8 @@ func doFilterFloat(database, collection, key string, node aql.Node) ([]string, e
 	values := make(map[float64]string, 0)
 	keys := make([]float64, 0)
 	for _, value := range stringValues {
-		floatVal, _ := strconv.ParseFloat(filepath.Base(value), 64)
+		decodedVal, _ := base64.StdEncoding.DecodeString(filepath.Base(value))
+		floatVal, _ := strconv.ParseFloat(string(decodedVal), 64)
 		values[floatVal] = value
 		keys = append(keys, floatVal)
 	}
@@ -652,7 +655,8 @@ func doFilterInt(database, collection, key string, node aql.Node) ([]string, err
 	values := make(map[int]string, 0)
 	keys := make([]int, 0)
 	for _, value := range stringValues {
-		intVal, _ := strconv.Atoi(filepath.Base(value))
+		decodedVal, _ := base64.StdEncoding.DecodeString(filepath.Base(value))
+		intVal, _ := strconv.Atoi(string(decodedVal))
 		values[intVal] = value
 		keys = append(keys, intVal)
 	}
@@ -676,7 +680,8 @@ func doFilterString(database, collection, key string, node aql.Node) ([]string, 
 	values := make(map[string]string, 0)
 	keys := make([]string, 0)
 	for _, value := range stringValues {
-		stringVal := filepath.Base(value)
+		decodedVal, _ := base64.StdEncoding.DecodeString(filepath.Base(value))
+		stringVal := string(decodedVal)
 		values[stringVal] = value
 		keys = append(keys, stringVal)
 	}
