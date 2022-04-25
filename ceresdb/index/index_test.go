@@ -2,6 +2,7 @@ package index
 
 import (
 	"ceresdb/config"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,8 +31,8 @@ func TestAdd(t *testing.T) {
 	if err != expectedError {
 		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
 	}
-
-	byteData, _ = os.ReadFile(config.Config.HomeDir + "/indices/db1/foo/foo/bar")
+	encodedVal := base64.StdEncoding.EncodeToString([]byte("bar"))
+	byteData, _ = os.ReadFile(config.Config.HomeDir + "/indices/db1/foo/foo/" + encodedVal)
 	data := string(byteData)
 
 	if data != expectedData {
@@ -187,7 +188,8 @@ func TestUpdate(t *testing.T) {
 		t.Errorf("Error was incorrect, got: %v, want: %v", err, expectedError)
 	}
 
-	byteData, _ := os.ReadFile(config.Config.HomeDir + "/indices/db1/foo/foo/baz")
+	encodedVal := base64.StdEncoding.EncodeToString([]byte("baz"))
+	byteData, _ := os.ReadFile(config.Config.HomeDir + "/indices/db1/foo/foo/" + encodedVal)
 	data := string(byteData)
 
 	if data != expectedData {
@@ -253,7 +255,8 @@ func TestGet(t *testing.T) {
 	os.Setenv("CERESDB_CONFIG_PATH", "../../test/.ceresdb/config/config.json")
 	config.ReadConfigFile()
 
-	byteData, _ := os.ReadFile(config.Config.HomeDir + "/indices/db1/foo/foo/bar")
+	encodedVal := base64.StdEncoding.EncodeToString([]byte("bar"))
+	byteData, _ := os.ReadFile(config.Config.HomeDir + "/indices/db1/foo/foo/" + encodedVal)
 	expectedIndices := strings.Split(string(byteData), "\n")
 	expectedIndices[len(expectedIndices)-1] = "1234-5678"
 	var expectedError error

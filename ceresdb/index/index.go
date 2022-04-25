@@ -5,7 +5,9 @@ package index
 import (
 	"ceresdb/config"
 	"ceresdb/utils"
+	"encoding/base64"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,7 +16,9 @@ import (
 var InvalidSchemaTypes = []string{"DICT", "LIST", "ANY"}
 
 func Add(database, collection string, datum map[string]interface{}, schemaData map[string]string) error {
+	log.Println("Adding indices")
 	for key, val := range datum {
+		log.Printf("Key: %v, value: %v", key, val)
 		if utils.Contains(InvalidSchemaTypes, schemaData[key]) {
 			continue
 		}
@@ -31,8 +35,9 @@ func Add(database, collection string, datum map[string]interface{}, schemaData m
 			continue
 		}
 		stringVal := fmt.Sprintf("%v", val)
+		encodedVal := base64.StdEncoding.EncodeToString([]byte(stringVal))
 		dirPath := filepath.Join(config.Config.IndexDir, database, collection, key)
-		filePath := filepath.Join(dirPath, stringVal)
+		filePath := filepath.Join(dirPath, encodedVal)
 		allPath := filepath.Join(config.Config.IndexDir, database, collection, "all")
 		if _, err := os.Stat(dirPath); os.IsNotExist(err) {
 			err = os.MkdirAll(dirPath, 0755)
@@ -74,7 +79,8 @@ func Delete(database, collection string, datum map[string]interface{}, schemaDat
 			continue
 		}
 		stringVal := fmt.Sprintf("%v", val)
-		filePath := filepath.Join(config.Config.IndexDir, database, collection, key, stringVal)
+		encodedVal := base64.StdEncoding.EncodeToString([]byte(stringVal))
+		filePath := filepath.Join(config.Config.IndexDir, database, collection, key, encodedVal)
 		data, err := os.ReadFile(filePath)
 		if err != nil {
 			return err
@@ -111,7 +117,8 @@ func Update(database, collection string, oldDatum, newDatum map[string]interface
 }
 
 func Get(database, collection, key, value string) ([]string, error) {
-	filePath := filepath.Join(config.Config.IndexDir, database, collection, key, value)
+	encodedVal := base64.StdEncoding.EncodeToString([]byte(value))
+	filePath := filepath.Join(config.Config.IndexDir, database, collection, key, encodedVal)
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err

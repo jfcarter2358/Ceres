@@ -67,7 +67,7 @@
 				
 				<option value="file5">ceresdb/freespace/freespace.go (100.0%)</option>
 				
-				<option value="file6">ceresdb/index/index.go (87.1%)</option>
+				<option value="file6">ceresdb/index/index.go (87.8%)</option>
 				
 				<option value="file7">ceresdb/permit/permit.go (100.0%)</option>
 				
@@ -1323,7 +1323,9 @@ package index
 import (
         "ceresdb/config"
         "ceresdb/utils"
+        "encoding/base64"
         "fmt"
+        "log"
         "os"
         "path/filepath"
         "strings"
@@ -1332,7 +1334,9 @@ import (
 var InvalidSchemaTypes = []string{"DICT", "LIST", "ANY"}
 
 func Add(database, collection string, datum map[string]interface{}, schemaData map[string]string) error <span class="cov8" title="1">{
+        log.Println("Adding indices")
         for key, val := range datum </span><span class="cov8" title="1">{
+                log.Printf("Key: %v, value: %v", key, val)
                 if utils.Contains(InvalidSchemaTypes, schemaData[key]) </span><span class="cov0" title="0">{
                         continue</span>
                 }
@@ -1349,8 +1353,9 @@ func Add(database, collection string, datum map[string]interface{}, schemaData m
                         continue</span>
                 }
                 <span class="cov8" title="1">stringVal := fmt.Sprintf("%v", val)
+                encodedVal := base64.StdEncoding.EncodeToString([]byte(stringVal))
                 dirPath := filepath.Join(config.Config.IndexDir, database, collection, key)
-                filePath := filepath.Join(dirPath, stringVal)
+                filePath := filepath.Join(dirPath, encodedVal)
                 allPath := filepath.Join(config.Config.IndexDir, database, collection, "all")
                 if _, err := os.Stat(dirPath); os.IsNotExist(err) </span><span class="cov8" title="1">{
                         err = os.MkdirAll(dirPath, 0755)
@@ -1392,7 +1397,8 @@ func Delete(database, collection string, datum map[string]interface{}, schemaDat
                         continue</span>
                 }
                 <span class="cov8" title="1">stringVal := fmt.Sprintf("%v", val)
-                filePath := filepath.Join(config.Config.IndexDir, database, collection, key, stringVal)
+                encodedVal := base64.StdEncoding.EncodeToString([]byte(stringVal))
+                filePath := filepath.Join(config.Config.IndexDir, database, collection, key, encodedVal)
                 data, err := os.ReadFile(filePath)
                 if err != nil </span><span class="cov8" title="1">{
                         return err
@@ -1429,7 +1435,8 @@ func Update(database, collection string, oldDatum, newDatum map[string]interface
 }
 
 func Get(database, collection, key, value string) ([]string, error) <span class="cov8" title="1">{
-        filePath := filepath.Join(config.Config.IndexDir, database, collection, key, value)
+        encodedVal := base64.StdEncoding.EncodeToString([]byte(value))
+        filePath := filepath.Join(config.Config.IndexDir, database, collection, key, encodedVal)
         data, err := os.ReadFile(filePath)
         if err != nil </span><span class="cov8" title="1">{
                 return nil, err

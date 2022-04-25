@@ -16,6 +16,9 @@ build-local:  ## Build a local CeresDB binary
 	mv ceresdb/ceresdb dist/ceresdb
 	cp -r template/.ceresdb dist/
 
+build-release: build-local  ## Build release artifact tar
+	cd dist && tar -czvf ceresdb-$$(cat ../ceresdb/VERSION).tar.gz .
+
 clean:  ## Remove build and test artifacts
 	ls test/.ceresdb/data/db1/foo | grep '-' | xargs -I % rm test/.ceresdb/data/db1/foo/% || true
 	for dirname in bar bad baz ; do \
