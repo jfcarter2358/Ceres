@@ -46,9 +46,8 @@ clean:  ## Remove build and test artifacts
 docs:
 	cd docs && make html
 
-publish-docker: clean build-docker  ## Build and publish the CeresDB docker image
-	docker tag ceresdb jfcarter2358/ceresdb:$$(cat ceresdb/VERSION)
-	docker push jfcarter2358/ceresdb:$$(cat ceresdb/VERSION)
+publish-docker: clean  ## Build and publish the CeresDB docker image
+	docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t jfcarter2358/ceresdb:$$(cat ceresdb/VERSION) --push .
 
 run-docker:  ## Run CeresDB in Docker
 	docker run -p 7437:7437 ceresdb

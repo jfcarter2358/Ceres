@@ -682,6 +682,9 @@ func doFilterString(database, collection, key string, node aql.Node) ([]string, 
 	for _, value := range stringValues {
 		decodedVal, _ := base64.StdEncoding.DecodeString(filepath.Base(value))
 		stringVal := string(decodedVal)
+		if stringVal == index.EMPTY_FIELD_VALUE {
+			stringVal = ""
+		}
 		values[stringVal] = value
 		keys = append(keys, stringVal)
 	}

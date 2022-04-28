@@ -2,7 +2,7 @@ FROM golang:1.18.0-alpine
 
 WORKDIR /ceresdb-build
 COPY ceresdb /ceresdb-build
-RUN env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -v -o ceresdb
+RUN env GOOS=linux CGO_ENABLED=0 go build -v -o ceresdb
 
 FROM alpine:latest  
 

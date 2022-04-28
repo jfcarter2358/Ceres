@@ -14,6 +14,8 @@ import (
 
 var InvalidSchemaTypes = []string{"DICT", "LIST", "ANY"}
 
+const EMPTY_FIELD_VALUE = ".ceresdb.empty-value"
+
 func Add(database, collection string, datum map[string]interface{}, schemaData map[string]string) error {
 	for key, val := range datum {
 		if utils.Contains(InvalidSchemaTypes, schemaData[key]) {
@@ -32,6 +34,9 @@ func Add(database, collection string, datum map[string]interface{}, schemaData m
 			continue
 		}
 		stringVal := fmt.Sprintf("%v", val)
+		if len(stringVal) == 0 {
+			stringVal = EMPTY_FIELD_VALUE
+		}
 		encodedVal := base64.StdEncoding.EncodeToString([]byte(stringVal))
 		dirPath := filepath.Join(config.Config.IndexDir, database, collection, key)
 		filePath := filepath.Join(dirPath, encodedVal)
@@ -76,6 +81,9 @@ func Delete(database, collection string, datum map[string]interface{}, schemaDat
 			continue
 		}
 		stringVal := fmt.Sprintf("%v", val)
+		if len(stringVal) == 0 {
+			stringVal = EMPTY_FIELD_VALUE
+		}
 		encodedVal := base64.StdEncoding.EncodeToString([]byte(stringVal))
 		filePath := filepath.Join(config.Config.IndexDir, database, collection, key, encodedVal)
 		data, err := os.ReadFile(filePath)
