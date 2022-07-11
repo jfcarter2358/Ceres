@@ -56,6 +56,9 @@ func determineType(value string, token *Token) {
 	ops := []string{">", ">=", "=", "<=", "<", "!="}
 	logic := []string{"AND", "OR", "XOR", "NOT"}
 	resources := []string{"DATABASE", "RECORD", "COLLECTION", "USER", "PERMIT"}
+	if len(value) == 0 {
+		return
+	}
 	switch strings.ToUpper(value) {
 	// Grammar
 	case ",":
@@ -661,7 +664,7 @@ func parseString(input string) []Token {
 // Parse processes input and get the actions as a result.
 // Actions are verified against the AQL grammar for correctness.
 func Parse(input string) ([]Action, error) {
-	tokens := parseString(input)
+	tokens := parseString(strings.TrimSpace(input))
 	patterns, err := getPatterns()
 	if err != nil {
 		return nil, err
