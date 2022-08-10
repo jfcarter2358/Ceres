@@ -14,6 +14,7 @@ import (
 	"ceresdb/schema"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"strings"
@@ -77,6 +78,7 @@ func queryProcessor() {
 }
 
 func handleQuery(query queue.QueueObject) ([]map[string]interface{}, error) {
+	log.Println("CERESDB: HANDLING QUERY")
 	authString := query.Auth
 	text := query.QueryString
 
@@ -84,13 +86,16 @@ func handleQuery(query queue.QueueObject) ([]map[string]interface{}, error) {
 	username := parts[0]
 	password := parts[1]
 
+	log.Println("PARSING AQL")
 	actions, err := aql.Parse(text)
 	if err != nil {
 		return nil, err
 	}
 	previousIDs := make([]string, 0)
 	dataOut := make([]map[string]interface{}, 0)
+	log.Println("PROCESSING ACTIONS")
 	for _, action := range actions {
+		log.Println("ACTION")
 		if err := auth.VerifyUserAction(username, password, action); err != nil {
 			return nil, err
 		}
@@ -113,6 +118,7 @@ func handleQuery(query queue.QueueObject) ([]map[string]interface{}, error) {
 		}
 		dataOut = data
 	}
+	log.Println("DONE")
 	return dataOut, nil
 }
 
