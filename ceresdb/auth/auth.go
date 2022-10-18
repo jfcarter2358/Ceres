@@ -60,21 +60,39 @@ func comparePasswords(hashedPassword string, plainPassword string) bool {
 	return true
 }
 
+func VerifyCredentials(username, password string) error {
+	nodeL := aql.Node{Value: "username"}
+	nodeR := aql.Node{Value: username}
+	nodeC := aql.Node{Value: "=", Left: &nodeL, Right: &nodeR}
+	getAction := aql.Action{Type: "GET", Resource: "USER", Filter: nodeC}
+	data, err := manager.ProcessAction(getAction, []string{}, []map[string]interface{}{}, true)
+	if err != nil {
+		return err
+	}
+	if len(data) != 1 {
+		return errors.New("user does not exist")
+	}
+	if !comparePasswords(data[0]["password"].(string), password) {
+		return errors.New("invalid password")
+	}
+	return nil
+}
+
 func VerifyUserAction(username, password string, action aql.Action) error {
 	dbLevel := []string{"RECORD", "COLLECTION", "PERMIT"}
 	nodeL := aql.Node{Value: "username"}
 	nodeR := aql.Node{Value: username}
 	nodeC := aql.Node{Value: "=", Left: &nodeL, Right: &nodeR}
 	getAction := aql.Action{Type: "GET", Resource: "USER", Filter: nodeC}
-	data, err := manager.ProcessAction(getAction, []string{}, true)
+	data, err := manager.ProcessAction(getAction, []string{}, []map[string]interface{}{}, true)
 	if err != nil {
 		return err
 	}
 	if len(data) != 1 {
-		return errors.New("User does not exist")
+		return errors.New("user does not exist")
 	}
 	if !comparePasswords(data[0]["password"].(string), password) {
-		return errors.New("Invalid password")
+		return errors.New("invalid password")
 	}
 	role := data[0]["role"].(string)
 
@@ -82,12 +100,12 @@ func VerifyUserAction(username, password string, action aql.Action) error {
 		parts := strings.Split(action.Identifier, ".")
 		database := parts[0]
 		getAction := aql.Action{Type: "GET", Resource: "PERMIT", Identifier: database, Filter: nodeC}
-		data, err = manager.ProcessAction(getAction, []string{}, false)
+		data, err = manager.ProcessAction(getAction, []string{}, []map[string]interface{}{}, false)
 		if err != nil {
 			return err
 		}
 		if len(data) != 1 {
-			return errors.New("User is not permitted to access this database")
+			return errors.New("user is not permitted to access this database")
 		}
 		dbRole := data[0]["role"].(string)
 		switch action.Type {
@@ -96,11 +114,11 @@ func VerifyUserAction(username, password string, action aql.Action) error {
 		case "DELETE":
 			if action.Resource == "PERMIT" || action.Resource == "COLLECTION" {
 				if !utils.Contains([]string{"ADMIN"}, dbRole) {
-					return errors.New("Access denied")
+					return errors.New("access denied")
 				}
 			} else {
 				if !utils.Contains([]string{"WRITE", "ADMIN"}, dbRole) {
-					return errors.New("Access denied")
+					return errors.New("access denied")
 				}
 			}
 			return nil
@@ -117,33 +135,33 @@ func VerifyUserAction(username, password string, action aql.Action) error {
 		case "PATCH":
 			if action.Resource == "PERMIT" || action.Resource == "COLLECTION" {
 				if !utils.Contains([]string{"ADMIN"}, dbRole) {
-					return errors.New("Access denied")
+					return errors.New("access denied")
 				}
 			} else {
 				if !utils.Contains([]string{"WRITE", "ADMIN"}, dbRole) {
-					return errors.New("Access denied")
+					return errors.New("access denied")
 				}
 			}
 			return nil
 		case "POST":
 			if action.Resource == "PERMIT" || action.Resource == "COLLECTION" {
 				if !utils.Contains([]string{"ADMIN"}, dbRole) {
-					return errors.New("Access denied")
+					return errors.New("access denied")
 				}
 			} else {
 				if !utils.Contains([]string{"WRITE", "ADMIN"}, dbRole) {
-					return errors.New("Access denied")
+					return errors.New("access denied")
 				}
 			}
 			return nil
 		case "PUT":
 			if action.Resource == "PERMIT" || action.Resource == "COLLECTION" {
 				if !utils.Contains([]string{"ADMIN"}, dbRole) {
-					return errors.New("Access denied")
+					return errors.New("access denied")
 				}
 			} else {
 				if !utils.Contains([]string{"WRITE", "ADMIN"}, dbRole) {
-					return errors.New("Access denied")
+					return errors.New("access denied")
 				}
 			}
 			return nil
@@ -155,11 +173,11 @@ func VerifyUserAction(username, password string, action aql.Action) error {
 		case "DELETE":
 			if action.Resource == "USER" {
 				if !utils.Contains([]string{"ADMIN"}, role) {
-					return errors.New("Access denied")
+					return errors.New("access denied")
 				}
 			} else {
 				if !utils.Contains([]string{"WRITE", "ADMIN"}, role) {
-					return errors.New("Access denied")
+					return errors.New("access denied")
 				}
 			}
 			return nil
@@ -173,42 +191,44 @@ func VerifyUserAction(username, password string, action aql.Action) error {
 			return nil
 		case "ORDERDSC":
 			return nil
+		case "JQ":
+			return nil
 		case "PATCH":
 			if action.Resource == "USER" {
 				if !utils.Contains([]string{"ADMIN"}, role) {
-					return errors.New("Access denied")
+					return errors.New("access denied")
 				}
 			} else {
 				if !utils.Contains([]string{"WRITE", "ADMIN"}, role) {
-					return errors.New("Access denied")
+					return errors.New("access denied")
 				}
 			}
 			return nil
 		case "POST":
 			if action.Resource == "USER" {
 				if !utils.Contains([]string{"ADMIN"}, role) {
-					return errors.New("Access denied")
+					return errors.New("access denied")
 				}
 			} else {
 				if !utils.Contains([]string{"WRITE", "ADMIN"}, role) {
-					return errors.New("Access denied")
+					return errors.New("access denied")
 				}
 			}
 			return nil
 		case "PUT":
 			if action.Resource == "USER" {
 				if !utils.Contains([]string{"ADMIN"}, role) {
-					return errors.New("Access denied")
+					return errors.New("access denied")
 				}
 			} else {
 				if !utils.Contains([]string{"WRITE", "ADMIN"}, role) {
-					return errors.New("Access denied")
+					return errors.New("access denied")
 				}
 			}
 			return nil
 		}
 	}
-	return errors.New("Invalid action type")
+	return errors.New("invalid action type")
 }
 
 func ProtectWrite(action aql.Action) error {

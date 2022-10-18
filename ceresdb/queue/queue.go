@@ -6,6 +6,7 @@ type QueueObject struct {
 	Data        []map[string]interface{}
 	Finished    bool
 	Err         error
+	Snapshot    bool
 }
 
 var Queue []*QueueObject

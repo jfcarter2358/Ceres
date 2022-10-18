@@ -7,6 +7,7 @@ RUN env GOOS=linux CGO_ENABLED=0 go build -v -o ceresdb
 FROM alpine:latest  
 
 RUN adduser --disabled-password ceresdb
+RUN apk add curl jq
 
 WORKDIR /home/ceresdb
 

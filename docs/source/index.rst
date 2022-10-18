@@ -12,6 +12,7 @@ Welcome to CeresDB's documentation!
    querying.rst
    running.rst
    schema.rst
+   replication.rst
 
 About
 =====

@@ -3,6 +3,7 @@
 package manager
 
 import (
+	"bytes"
 	"ceresdb/aql"
 	"ceresdb/collection"
 	"ceresdb/config"
@@ -14,8 +15,11 @@ import (
 	"ceresdb/user"
 	"ceresdb/utils"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -183,7 +187,7 @@ func ProcessGet(action aql.Action, previousIDs []string, internal bool) ([]map[s
 	return nil, errors.New("Invalid resource type")
 }
 
-func ProcessPost(action aql.Action, previousIDs []string) error {
+func ProcessPost(action aql.Action, previousIDs []string, previousData []map[string]interface{}) error {
 	switch action.Resource {
 	case "COLLECTION":
 		parts := strings.Split(action.Identifier, ".")
@@ -196,41 +200,74 @@ func ProcessPost(action aql.Action, previousIDs []string) error {
 		return err
 	case "PERMIT":
 		keys := []string{"username", "role"}
-		for _, key := range keys {
-			if _, ok := action.Data[0][key]; !ok {
-				return errors.New("Invalid user data, required fields are 'username' and 'role'")
+		if len(action.Data) > 0 {
+			for _, key := range keys {
+				if _, ok := action.Data[0][key]; !ok {
+					return errors.New("Invalid user data, required fields are 'username' and 'role'")
+				}
 			}
+			inputData := []map[string]interface{}{{"username": action.Data[0]["username"].(string), "role": action.Data[0]["role"].(string)}}
+			err := permit.Post(action.Identifier, inputData)
+			return err
+		} else {
+			for _, key := range keys {
+				if _, ok := previousData[0][key]; !ok {
+					return errors.New("Invalid user data, required fields are 'username' and 'role'")
+				}
+			}
+			inputData := []map[string]interface{}{{"username": previousData[0]["username"].(string), "role": previousData[0]["role"].(string)}}
+			err := permit.Post(action.Identifier, inputData)
+			return err
 		}
-		inputData := []map[string]interface{}{{"username": action.Data[0]["username"].(string), "role": action.Data[0]["role"].(string)}}
-		err := permit.Post(action.Identifier, inputData)
-		return err
 	case "RECORD":
 		parts := strings.Split(action.Identifier, ".")
 		db := parts[0]
 		col := parts[1]
-		err := record.Post(db, col, action.Data)
-		return err
+		if len(action.Data) > 0 {
+			err := record.Post(db, col, action.Data)
+			return err
+		} else {
+			err := record.Post(db, col, previousData)
+			return err
+		}
 	case "USER":
 		keys := []string{"username", "password", "role"}
-		for _, key := range keys {
-			if _, ok := action.Data[0][key]; !ok {
-				return errors.New("Invalid user data, required fields are 'username', 'password', and 'role'")
+		if len(action.Data) > 0 {
+			for _, key := range keys {
+				if _, ok := action.Data[0][key]; !ok {
+					return errors.New("Invalid user data, required fields are 'username', 'password', and 'role'")
+				}
 			}
-		}
-		for idx, datum := range action.Data {
-			hash, err := bcrypt.GenerateFromPassword([]byte(datum["password"].(string)), bcrypt.DefaultCost)
-			if err != nil {
-				return err
+			for idx, datum := range action.Data {
+				hash, err := bcrypt.GenerateFromPassword([]byte(datum["password"].(string)), bcrypt.DefaultCost)
+				if err != nil {
+					return err
+				}
+				action.Data[idx]["password"] = string(hash)
 			}
-			action.Data[idx]["password"] = string(hash)
+			err := user.Post(action.Data)
+			return err
+		} else {
+			for _, key := range keys {
+				if _, ok := previousData[0][key]; !ok {
+					return errors.New("Invalid user data, required fields are 'username', 'password', and 'role'")
+				}
+			}
+			for idx, datum := range previousData {
+				hash, err := bcrypt.GenerateFromPassword([]byte(datum["password"].(string)), bcrypt.DefaultCost)
+				if err != nil {
+					return err
+				}
+				previousData[idx]["password"] = string(hash)
+			}
+			err := user.Post(previousData)
+			return err
 		}
-		err := user.Post(action.Data)
-		return err
 	}
 	return errors.New("Invalid resource type")
 }
 
-func ProcessPut(action aql.Action, previousIDs []string) error {
+func ProcessPut(action aql.Action, previousIDs []string, previousData []map[string]interface{}) error {
 	switch action.Resource {
 	case "COLLECTION":
 		parts := strings.Split(action.Identifier, ".")
@@ -243,53 +280,98 @@ func ProcessPut(action aql.Action, previousIDs []string) error {
 		return err
 	case "PERMIT":
 		keys := []string{"username", "role"}
-		for _, key := range keys {
-			if _, ok := action.Data[0][key]; !ok {
-				return errors.New("Invalid user data, required fields are 'username', 'password', and 'role'")
+		if len(action.Data) > 0 {
+			for _, key := range keys {
+				if _, ok := action.Data[0][key]; !ok {
+					return errors.New("Invalid user data, required fields are 'username', 'password', and 'role'")
+				}
 			}
-		}
-		nodeL := aql.Node{Value: "username"}
-		nodeR := aql.Node{Value: action.Data[0]["username"].(string)}
-		nodeC := aql.Node{Value: "=", Left: &nodeL, Right: &nodeR}
-		getAction := aql.Action{Type: "GET", Resource: "PERMIT", Identifier: action.Identifier, Filter: nodeC}
-		data, err := ProcessGet(getAction, []string{}, false)
-		if err != nil {
+			nodeL := aql.Node{Value: "username"}
+			nodeR := aql.Node{Value: action.Data[0]["username"].(string)}
+			nodeC := aql.Node{Value: "=", Left: &nodeL, Right: &nodeR}
+			getAction := aql.Action{Type: "GET", Resource: "PERMIT", Identifier: action.Identifier, Filter: nodeC}
+			data, err := ProcessGet(getAction, []string{}, false)
+			if err != nil {
+				return err
+			}
+			if len(data) != 1 {
+				return errors.New("User does not exist")
+			}
+			data[0]["username"] = action.Data[0]["username"].(string)
+			data[0]["role"] = action.Data[0]["role"].(string)
+			err = permit.Put(action.Identifier, data)
+			return err
+		} else {
+			for _, key := range keys {
+				if _, ok := previousData[0][key]; !ok {
+					return errors.New("Invalid user data, required fields are 'username', 'password', and 'role'")
+				}
+			}
+			nodeL := aql.Node{Value: "username"}
+			nodeR := aql.Node{Value: previousData[0]["username"].(string)}
+			nodeC := aql.Node{Value: "=", Left: &nodeL, Right: &nodeR}
+			getAction := aql.Action{Type: "GET", Resource: "PERMIT", Identifier: action.Identifier, Filter: nodeC}
+			data, err := ProcessGet(getAction, []string{}, false)
+			if err != nil {
+				return err
+			}
+			if len(data) != 1 {
+				return errors.New("User does not exist")
+			}
+			data[0]["username"] = previousData[0]["username"].(string)
+			data[0]["role"] = previousData[0]["role"].(string)
+			err = permit.Put(action.Identifier, data)
 			return err
 		}
-		if len(data) != 1 {
-			return errors.New("User does not exist")
-		}
-		data[0]["username"] = action.Data[0]["username"].(string)
-		data[0]["role"] = action.Data[0]["role"].(string)
-		err = permit.Put(action.Identifier, data)
-		return err
 	case "RECORD":
 		parts := strings.Split(action.Identifier, ".")
 		db := parts[0]
 		col := parts[1]
-		err := record.Put(db, col, action.Data)
-		return err
+		if len(action.Data) > 0 {
+			err := record.Put(db, col, action.Data)
+			return err
+		} else {
+			err := record.Put(db, col, previousData)
+			return err
+		}
 	case "USER":
 		keys := []string{"username", "password", "role"}
-		for _, key := range keys {
-			if _, ok := action.Data[0][key]; !ok {
-				return errors.New("Invalid user data, required fields are 'username', 'password', and 'role'")
+		if len(action.Data) > 0 {
+			for _, key := range keys {
+				if _, ok := action.Data[0][key]; !ok {
+					return errors.New("invalid user data, required fields are 'username', 'password', and 'role'")
+				}
 			}
-		}
-		for idx, datum := range action.Data {
-			hash, err := bcrypt.GenerateFromPassword([]byte(datum["password"].(string)), bcrypt.DefaultCost)
-			if err != nil {
-				return err
+			for idx, datum := range action.Data {
+				hash, err := bcrypt.GenerateFromPassword([]byte(datum["password"].(string)), bcrypt.DefaultCost)
+				if err != nil {
+					return err
+				}
+				action.Data[idx]["password"] = string(hash)
 			}
-			action.Data[idx]["password"] = string(hash)
+			err := user.Put(action.Data)
+			return err
+		} else {
+			for _, key := range keys {
+				if _, ok := previousData[0][key]; !ok {
+					return errors.New("invalid user data, required fields are 'username', 'password', and 'role'")
+				}
+			}
+			for idx, datum := range previousData {
+				hash, err := bcrypt.GenerateFromPassword([]byte(datum["password"].(string)), bcrypt.DefaultCost)
+				if err != nil {
+					return err
+				}
+				previousData[idx]["password"] = string(hash)
+			}
+			err := user.Put(previousData)
+			return err
 		}
-		err := user.Put(action.Data)
-		return err
 	}
-	return errors.New("Invalid resource type")
+	return errors.New("invalid resource type")
 }
 
-func ProcessPatch(action aql.Action, previousIDs []string) error {
+func ProcessPatch(action aql.Action, previousIDs []string, previousData []map[string]interface{}) error {
 	switch action.Resource {
 	case "COLLECTION":
 		err := collection.Patch()
@@ -305,17 +387,27 @@ func ProcessPatch(action aql.Action, previousIDs []string) error {
 		db := parts[0]
 		col := parts[1]
 		if action.IDs[0] != "-" {
-			err := record.Patch(db, col, action.IDs, action.Data[0])
-			return err
+			if len(action.Data) > 0 {
+				err := record.Patch(db, col, action.IDs, action.Data[0])
+				return err
+			} else {
+				err := record.Patch(db, col, action.IDs, previousData[0])
+				return err
+			}
 		} else {
-			err := record.Patch(db, col, previousIDs, action.Data[0])
-			return err
+			if len(action.Data) > 0 {
+				err := record.Patch(db, col, previousIDs, action.Data[0])
+				return err
+			} else {
+				err := record.Patch(db, col, previousIDs, previousData[0])
+				return err
+			}
 		}
 	case "USER":
 		err := user.Patch()
 		return err
 	}
-	return errors.New("Invalid resource type")
+	return errors.New("invalid resource type")
 }
 
 func ProcessDelete(action aql.Action, previousIDs []string) error {
@@ -357,7 +449,7 @@ func ProcessDelete(action aql.Action, previousIDs []string) error {
 			return err
 		}
 	}
-	return errors.New("Invalid resource type")
+	return errors.New("invalid resource type")
 }
 
 func ProcessCount(action aql.Action, previousIDs []string) ([]map[string]interface{}, error) {
@@ -365,25 +457,64 @@ func ProcessCount(action aql.Action, previousIDs []string) ([]map[string]interfa
 	return output, nil
 }
 
-func ProcessAction(action aql.Action, previousIDs []string, internal bool) ([]map[string]interface{}, error) {
+func ProcessJQ(action aql.Action, previousData []map[string]interface{}) ([]map[string]interface{}, error) {
+
+	payloadBytes, err := json.Marshal(previousData)
+	if err != nil {
+		return nil, err
+	}
+	payloadString := strings.Replace(string(payloadBytes), "'", "\\'", -1)
+
+	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf("echo '%s' | jq '%s'", payloadString, action.JQ))
+	var outb, errb bytes.Buffer
+	cmd.Stdout = &outb
+	cmd.Stderr = &errb
+
+	err = cmd.Run()
+	if err != nil {
+		return nil, errors.New(errb.String())
+	}
+
+	var output []map[string]interface{}
+	json.Unmarshal(outb.Bytes(), &output)
+
+	return output, nil
+}
+
+func ProcessAction(action aql.Action, previousIDs []string, previousData []map[string]interface{}, internal bool) ([]map[string]interface{}, error) {
 	switch action.Type {
 	case "GET":
 		data, err := ProcessGet(action, previousIDs, internal)
 		return data, err
 	case "POST":
-		err := ProcessPost(action, previousIDs)
+		if config.Config.Leader != "" {
+			return nil, errors.New("write actions are not permitted on follower databases")
+		}
+		err := ProcessPost(action, previousIDs, previousData)
 		return nil, err
 	case "PUT":
-		err := ProcessPut(action, previousIDs)
+		if config.Config.Leader != "" {
+			return nil, errors.New("write actions are not permitted on follower databases")
+		}
+		err := ProcessPut(action, previousIDs, previousData)
 		return nil, err
 	case "PATCH":
-		err := ProcessPatch(action, previousIDs)
+		if config.Config.Leader != "" {
+			return nil, errors.New("write actions are not permitted on follower databases")
+		}
+		err := ProcessPatch(action, previousIDs, previousData)
 		return nil, err
 	case "DELETE":
+		if config.Config.Leader != "" {
+			return nil, errors.New("write actions are not permitted on follower databases")
+		}
 		err := ProcessDelete(action, previousIDs)
 		return nil, err
 	case "COUNT":
 		data, err := ProcessCount(action, previousIDs)
+		return data, err
+	case "JQ":
+		data, err := ProcessJQ(action, previousData)
 		return data, err
 	}
 	return nil, nil
@@ -601,7 +732,7 @@ func boolToInt(boolVal bool) int {
 
 func doFilterBool(database, collection, key string, node aql.Node) ([]string, error) {
 	filePath := filepath.Join(config.Config.IndexDir, database, collection, key)
-	stringValues, _ := filePathWalkDir(filePath)
+	stringValues, _ := FilePathWalkDir(filePath)
 	values := make(map[bool]string, 0)
 	keys := make([]bool, 0)
 	for _, value := range stringValues {
@@ -626,7 +757,7 @@ func doFilterBool(database, collection, key string, node aql.Node) ([]string, er
 
 func doFilterFloat(database, collection, key string, node aql.Node) ([]string, error) {
 	filePath := filepath.Join(config.Config.IndexDir, database, collection, key)
-	stringValues, _ := filePathWalkDir(filePath)
+	stringValues, _ := FilePathWalkDir(filePath)
 	values := make(map[float64]string, 0)
 	keys := make([]float64, 0)
 	for _, value := range stringValues {
@@ -651,7 +782,7 @@ func doFilterFloat(database, collection, key string, node aql.Node) ([]string, e
 
 func doFilterInt(database, collection, key string, node aql.Node) ([]string, error) {
 	filePath := filepath.Join(config.Config.IndexDir, database, collection, key)
-	stringValues, _ := filePathWalkDir(filePath)
+	stringValues, _ := FilePathWalkDir(filePath)
 	values := make(map[int]string, 0)
 	keys := make([]int, 0)
 	for _, value := range stringValues {
@@ -676,7 +807,7 @@ func doFilterInt(database, collection, key string, node aql.Node) ([]string, err
 
 func doFilterString(database, collection, key string, node aql.Node) ([]string, error) {
 	filePath := filepath.Join(config.Config.IndexDir, database, collection, key)
-	stringValues, _ := filePathWalkDir(filePath)
+	stringValues, _ := FilePathWalkDir(filePath)
 	values := make(map[string]string, 0)
 	keys := make([]string, 0)
 	for _, value := range stringValues {
@@ -786,7 +917,7 @@ func ProcessFilter(database, collection string, node aql.Node) ([]string, error)
 	return nil, nil
 }
 
-func filePathWalkDir(root string) ([]string, error) {
+func FilePathWalkDir(root string) ([]string, error) {
 	var files []string
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {

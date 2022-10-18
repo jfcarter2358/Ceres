@@ -431,6 +431,11 @@ and then setting the environment variable `CERESDB_CONFIG_PATH` to point to said
     - [x] Readthedocs
 
 **v1.1.0**
+- [x] `jq` data manipulation support
+- [x] Switch to using HTTP for server
+- [x] Leader/follower DB replication
+
+**v1.2.0**
 
 - [ ] Better Index management
     - [ ] Multi-word string indices
@@ -447,6 +452,7 @@ and then setting the environment variable `CERESDB_CONFIG_PATH` to point to said
     - [ ] `*`
     - [ ] `/`
     - [ ] `^`
+- [ ] Token authentication
 
 **v1.2.0**
 

@@ -116,6 +116,8 @@ Returns the permits contained in a CeresDB database
 Post
 ----
 
+.. note:: To use data piped into the post command, omit the dictionary at the end of the command
+   
 Creates a new permit
 
 .. code-block::
@@ -125,6 +127,8 @@ Creates a new permit
 Put
 ---
 
+.. note:: To use data piped into the put command, omit the dictionary at the end of the command
+   
 Overwrites a permit with new data
 
 .. code-block::
@@ -157,6 +161,8 @@ Returns the databases contained in the CeresDB instance
 Post
 ----
 
+.. note:: To use data piped into the post command, omit the dictionary at the end of the command
+   
 Creates a new database
 
 .. code-block::
@@ -166,6 +172,8 @@ Creates a new database
 Patch
 -----
 
+.. note:: To use data piped into the patch command, omit the dictionary at the end of the command
+   
 Updates a field in multiple records
 
 .. code-block::
@@ -175,6 +183,8 @@ Updates a field in multiple records
 Put
 ---
 
+.. note:: To use data piped into the put command, omit the dictionary at the end of the command
+   
 Overwrites a record with new data
 
 .. code-block::
@@ -211,6 +221,8 @@ Returns the users contained in a CeresDB instance
 Post
 ----
 
+.. note:: To use data piped into the post command, omit the dictionary at the end of the command
+
 Creates a new user
 
 .. code-block::
@@ -219,6 +231,8 @@ Creates a new user
 
 Put
 ---
+
+.. note:: To use data piped into the put command, omit the dictionary at the end of the command
 
 Overwrites a user with new data
 
@@ -257,6 +271,19 @@ operators
 .. code-block::
 
    <Other query> | FILTER <field name> <comparison operator> <value> <logical operator> ...
+
+JQ
+--
+
+Allows you to process data piped into the command using a JQ string.
+
+.. code-block::
+   
+   <Other query> | JQ '<your JQ string here>'
+
+.. note:: The JQ string *must* be wrapped in single quotes
+
+.. note:: The JQ command can be used to modify data entirely on the server by piping a ``GET`` command into a ``JQ`` command and then piping that into a ``PUT`` command
 
 
 Comparison Operators

@@ -13,13 +13,18 @@ import (
 	"strings"
 )
 
+const DEFAULT_CONFIG_PATH = ".ceresdb/config/config.json"
+const ENV_PREFIX = "CERESDB_"
+
 type ConfigObject struct {
-	LogLevel         string `json:"log-level" binding:"required" env:"CERESDB_LOG_LEVEL"`
-	HomeDir          string `json:"home-dir" binding:"required" env:"CERESDB_HOME_DIR"`
-	DataDir          string `json:"data-dir" binding:"required" env:"CERESDB_DATA_DIR"`
-	IndexDir         string `json:"index-dir" binding:"required" env:"CERESDB_INDEX_DIR"`
-	StorageLineLimit int    `json:"storage-line-limit" binding:"required" env:"CERESDB_STORAGE_LINE_LIMIT"`
-	Port             int    `json:"port" binding:"required" env:"CERESDB_PORT"`
+	LogLevel         string `json:"log-level" binding:"required" env:"LOG_LEVEL"`
+	HomeDir          string `json:"home-dir" binding:"required" env:"HOME_DIR"`
+	DataDir          string `json:"data-dir" binding:"required" env:"DATA_DIR"`
+	IndexDir         string `json:"index-dir" binding:"required" env:"INDEX_DIR"`
+	StorageLineLimit int    `json:"storage-line-limit" binding:"required" env:"STORAGE_LINE_LIMIT"`
+	Port             int    `json:"port" binding:"required" env:"PORT"`
+	Leader           string `json:"leader" env:"LEADER"`
+	FollowerAuth     string `json:"follower_auth" env:"FOLLOWER_AUTH"`
 }
 
 var Config ConfigObject
@@ -27,9 +32,9 @@ var Config ConfigObject
 func ReadConfigFile() *ConfigObject {
 
 	// Set default path if we are not passed one
-	path := os.Getenv("CERESDB_CONFIG_PATH")
+	path := os.Getenv(ENV_PREFIX + "CONFIG_PATH")
 	if path == "" {
-		path = ".ceresdb/config/config.json"
+		path = DEFAULT_CONFIG_PATH
 	}
 
 	// Open our jsonFile
@@ -55,7 +60,7 @@ func ReadConfigFile() *ConfigObject {
 
 		value := field.Tag.Get("env")
 		if value != "" {
-			val, present := os.LookupEnv(value)
+			val, present := os.LookupEnv(ENV_PREFIX + value)
 			if present {
 				w := reflect.ValueOf(&Config).Elem().FieldByName(t.Field(i).Name)
 				x := getAttr(&Config, t.Field(i).Name).Kind().String()
@@ -66,38 +71,38 @@ func ReadConfigFile() *ConfigObject {
 						if err == nil {
 							w.SetInt(i)
 						}
-					// case "int8":
-					// 	i, err := strconv.ParseInt(val, 10, 8)
-					// 	if err == nil {
-					// 		w.SetInt(i)
-					// 	}
-					// case "int16":
-					// 	i, err := strconv.ParseInt(val, 10, 16)
-					// 	if err == nil {
-					// 		w.SetInt(i)
-					// 	}
-					// case "int32":
-					// 	i, err := strconv.ParseInt(val, 10, 32)
-					// 	if err == nil {
-					// 		w.SetInt(i)
-					// 	}
+					case "int8":
+						i, err := strconv.ParseInt(val, 10, 8)
+						if err == nil {
+							w.SetInt(i)
+						}
+					case "int16":
+						i, err := strconv.ParseInt(val, 10, 16)
+						if err == nil {
+							w.SetInt(i)
+						}
+					case "int32":
+						i, err := strconv.ParseInt(val, 10, 32)
+						if err == nil {
+							w.SetInt(i)
+						}
 					case "string":
 						w.SetString(val)
-						// case "float32":
-						// 	i, err := strconv.ParseFloat(val, 32)
-						// 	if err == nil {
-						// 		w.SetFloat(i)
-						// 	}
-						// case "float", "float64":
-						// 	i, err := strconv.ParseFloat(val, 64)
-						// 	if err == nil {
-						// 		w.SetFloat(i)
-						// 	}
-						// case "bool":
-						// 	i, err := strconv.ParseBool(val)
-						// 	if err == nil {
-						// 		w.SetBool(i)
-						// 	}
+					case "float32":
+						i, err := strconv.ParseFloat(val, 32)
+						if err == nil {
+							w.SetFloat(i)
+						}
+					case "float", "float64":
+						i, err := strconv.ParseFloat(val, 64)
+						if err == nil {
+							w.SetFloat(i)
+						}
+					case "bool":
+						i, err := strconv.ParseBool(val)
+						if err == nil {
+							w.SetBool(i)
+						}
 					}
 				}
 			}

@@ -1,0 +1,10 @@
+version: "3.9"
+networks:
+  isolation-network:
+    driver: bridge
+services:
+  ceresdb:
+    image: "ceresdb"
+    ports:
+      - "127.0.0.1:7437:7437"
+    tty: true

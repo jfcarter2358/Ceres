@@ -31,10 +31,12 @@ type DepthStruct struct {
 }
 
 type FlagStruct struct {
-	Quote   bool
-	Bracket bool
-	Brace   bool
-	Paren   bool
+	Quote       bool
+	Bracket     bool
+	Brace       bool
+	Paren       bool
+	SingleQuote bool
+	DoubleQuote bool
 }
 
 type Action struct {
@@ -49,6 +51,7 @@ type Action struct {
 	OrderDir   string
 	Data       []map[string]interface{}
 	User       string
+	JQ         string
 }
 
 // Determine the type of a token based on its value
@@ -112,6 +115,9 @@ func determineType(value string, token *Token) {
 	case "ORDERDSC":
 		token.Type = "ORDERDSC"
 		token.Value = strings.ToUpper(value)
+	case "JQ":
+		token.Type = "JQ"
+		token.Value = strings.ToUpper(value)
 	default:
 		val := strings.ToUpper(value)
 		// Check the more open-ended types
@@ -125,6 +131,9 @@ func determineType(value string, token *Token) {
 			token.Type = "LOGIC"
 			token.Value = val
 		} else if value[0:1] == "\"" {
+			token.Type = "STRING"
+			token.Value = value[1 : len(value)-1]
+		} else if value[0:1] == "'" {
 			token.Type = "STRING"
 			token.Value = value[1 : len(value)-1]
 		} else if value[0:1] == "[" {
@@ -563,6 +572,16 @@ func buildActions(tokens []Token, patterns map[string]interface{}) ([]Action, er
 			}
 			currentAction.OrderDir = "DSC"
 			currentAction.Order = tokenAction[1].Value
+		case "JQ":
+			if !firstFlag {
+				actions = append(actions, currentAction)
+			}
+			pattern := patterns["JQ"].(string)
+			if err := checkPattern(actionString, actionSyntax, pattern); err != nil {
+				return nil, err
+			}
+			currentAction = Action{Type: "JQ"}
+			currentAction.JQ = tokenAction[1].Value
 		}
 	}
 	actions = append(actions, currentAction)
@@ -573,7 +592,7 @@ func buildActions(tokens []Token, patterns map[string]interface{}) ([]Action, er
 func parseString(input string) []Token {
 	text := strings.Split(input, "")
 	depths := DepthStruct{Paren: 0, Brace: 0, Bracket: 0}
-	flags := FlagStruct{Quote: false}
+	flags := FlagStruct{Quote: false, SingleQuote: false, DoubleQuote: false}
 	buffer := ""
 	tokens := make([]Token, 0)
 
@@ -582,8 +601,13 @@ func parseString(input string) []Token {
 		if idx > 0 {
 			look_behind = text[idx-1]
 		}
-		if char == "\"" && look_behind != "\\" {
+		if char == "\"" && look_behind != "\\" && !flags.SingleQuote {
 			flags.Quote = !flags.Quote
+			flags.DoubleQuote = !flags.DoubleQuote
+			buffer += char
+		} else if char == "'" && look_behind != "\\" && !flags.DoubleQuote {
+			flags.Quote = !flags.Quote
+			flags.SingleQuote = !flags.SingleQuote
 			buffer += char
 		} else {
 			if !flags.Quote {

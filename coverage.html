@@ -55,11 +55,11 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">ceresdb/aql/aql.go (100.0%)</option>
+				<option value="file0">ceresdb/aql/aql.go (96.1%)</option>
 				
 				<option value="file1">ceresdb/collection/collection.go (86.6%)</option>
 				
-				<option value="file2">ceresdb/config/config.go (82.0%)</option>
+				<option value="file2">ceresdb/config/config.go (60.3%)</option>
 				
 				<option value="file3">ceresdb/cursor/cursor.go (95.6%)</option>
 				
@@ -67,7 +67,7 @@
 				
 				<option value="file5">ceresdb/freespace/freespace.go (100.0%)</option>
 				
-				<option value="file6">ceresdb/index/index.go (87.8%)</option>
+				<option value="file6">ceresdb/index/index.go (85.9%)</option>
 				
 				<option value="file7">ceresdb/permit/permit.go (100.0%)</option>
 				
@@ -122,10 +122,12 @@ type DepthStruct struct {
 }
 
 type FlagStruct struct {
-        Quote   bool
-        Bracket bool
-        Brace   bool
-        Paren   bool
+        Quote       bool
+        Bracket     bool
+        Brace       bool
+        Paren       bool
+        SingleQuote bool
+        DoubleQuote bool
 }
 
 type Action struct {
@@ -140,6 +142,7 @@ type Action struct {
         OrderDir   string
         Data       []map[string]interface{}
         User       string
+        JQ         string
 }
 
 // Determine the type of a token based on its value
@@ -147,7 +150,10 @@ func determineType(value string, token *Token) <span class="cov8" title="1">{
         ops := []string{"&gt;", "&gt;=", "=", "&lt;=", "&lt;", "!="}
         logic := []string{"AND", "OR", "XOR", "NOT"}
         resources := []string{"DATABASE", "RECORD", "COLLECTION", "USER", "PERMIT"}
-        switch strings.ToUpper(value) </span>{
+        if len(value) == 0 </span><span class="cov0" title="0">{
+                return
+        }</span>
+        <span class="cov8" title="1">switch strings.ToUpper(value) </span>{
         // Grammar
         case ",":<span class="cov8" title="1">
                 token.Type = "COMMA"</span>
@@ -200,6 +206,9 @@ func determineType(value string, token *Token) <span class="cov8" title="1">{
         case "ORDERDSC":<span class="cov8" title="1">
                 token.Type = "ORDERDSC"
                 token.Value = strings.ToUpper(value)</span>
+        case "JQ":<span class="cov0" title="0">
+                token.Type = "JQ"
+                token.Value = strings.ToUpper(value)</span>
         default:<span class="cov8" title="1">
                 val := strings.ToUpper(value)
                 // Check the more open-ended types
@@ -213,6 +222,9 @@ func determineType(value string, token *Token) <span class="cov8" title="1">{
                         token.Type = "LOGIC"
                         token.Value = val
                 }</span> else<span class="cov8" title="1"> if value[0:1] == "\"" </span><span class="cov8" title="1">{
+                        token.Type = "STRING"
+                        token.Value = value[1 : len(value)-1]
+                }</span> else<span class="cov8" title="1"> if value[0:1] == "'" </span><span class="cov0" title="0">{
                         token.Type = "STRING"
                         token.Value = value[1 : len(value)-1]
                 }</span> else<span class="cov8" title="1"> if value[0:1] == "[" </span><span class="cov8" title="1">{
@@ -651,6 +663,16 @@ func buildActions(tokens []Token, patterns map[string]interface{}) ([]Action, er
                         }</span>
                         <span class="cov8" title="1">currentAction.OrderDir = "DSC"
                         currentAction.Order = tokenAction[1].Value</span>
+                case "JQ":<span class="cov0" title="0">
+                        if !firstFlag </span><span class="cov0" title="0">{
+                                actions = append(actions, currentAction)
+                        }</span>
+                        <span class="cov0" title="0">pattern := patterns["JQ"].(string)
+                        if err := checkPattern(actionString, actionSyntax, pattern); err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+                        <span class="cov0" title="0">currentAction = Action{Type: "JQ"}
+                        currentAction.JQ = tokenAction[1].Value</span>
                 }
         }
         <span class="cov8" title="1">actions = append(actions, currentAction)
@@ -661,7 +683,7 @@ func buildActions(tokens []Token, patterns map[string]interface{}) ([]Action, er
 func parseString(input string) []Token <span class="cov8" title="1">{
         text := strings.Split(input, "")
         depths := DepthStruct{Paren: 0, Brace: 0, Bracket: 0}
-        flags := FlagStruct{Quote: false}
+        flags := FlagStruct{Quote: false, SingleQuote: false, DoubleQuote: false}
         buffer := ""
         tokens := make([]Token, 0)
 
@@ -670,8 +692,13 @@ func parseString(input string) []Token <span class="cov8" title="1">{
                 if idx &gt; 0 </span><span class="cov8" title="1">{
                         look_behind = text[idx-1]
                 }</span>
-                <span class="cov8" title="1">if char == "\"" &amp;&amp; look_behind != "\\" </span><span class="cov8" title="1">{
+                <span class="cov8" title="1">if char == "\"" &amp;&amp; look_behind != "\\" &amp;&amp; !flags.SingleQuote </span><span class="cov8" title="1">{
                         flags.Quote = !flags.Quote
+                        flags.DoubleQuote = !flags.DoubleQuote
+                        buffer += char
+                }</span> else<span class="cov8" title="1"> if char == "'" &amp;&amp; look_behind != "\\" &amp;&amp; !flags.DoubleQuote </span><span class="cov0" title="0">{
+                        flags.Quote = !flags.Quote
+                        flags.SingleQuote = !flags.SingleQuote
                         buffer += char
                 }</span> else<span class="cov8" title="1"> {
                         if !flags.Quote </span><span class="cov8" title="1">{
@@ -752,7 +779,7 @@ func parseString(input string) []Token <span class="cov8" title="1">{
 // Parse processes input and get the actions as a result.
 // Actions are verified against the AQL grammar for correctness.
 func Parse(input string) ([]Action, error) <span class="cov8" title="1">{
-        tokens := parseString(input)
+        tokens := parseString(strings.TrimSpace(input))
         patterns, err := getPatterns()
         if err != nil </span><span class="cov8" title="1">{
                 return nil, err
@@ -890,13 +917,18 @@ import (
         "strings"
 )
 
+const DEFAULT_CONFIG_PATH = ".ceresdb/config/config.json"
+const ENV_PREFIX = "CERESDB_"
+
 type ConfigObject struct {
-        LogLevel         string `json:"log-level" binding:"required" env:"CERESDB_LOG_LEVEL"`
-        HomeDir          string `json:"home-dir" binding:"required" env:"CERESDB_HOME_DIR"`
-        DataDir          string `json:"data-dir" binding:"required" env:"CERESDB_DATA_DIR"`
-        IndexDir         string `json:"index-dir" binding:"required" env:"CERESDB_INDEX_DIR"`
-        StorageLineLimit int    `json:"storage-line-limit" binding:"required" env:"CERESDB_STORAGE_LINE_LIMIT"`
-        Port             int    `json:"port" binding:"required" env:"CERESDB_PORT"`
+        LogLevel         string `json:"log-level" binding:"required" env:"LOG_LEVEL"`
+        HomeDir          string `json:"home-dir" binding:"required" env:"HOME_DIR"`
+        DataDir          string `json:"data-dir" binding:"required" env:"DATA_DIR"`
+        IndexDir         string `json:"index-dir" binding:"required" env:"INDEX_DIR"`
+        StorageLineLimit int    `json:"storage-line-limit" binding:"required" env:"STORAGE_LINE_LIMIT"`
+        Port             int    `json:"port" binding:"required" env:"PORT"`
+        Leader           string `json:"leader" env:"LEADER"`
+        FollowerAuth     string `json:"follower_auth" env:"FOLLOWER_AUTH"`
 }
 
 var Config ConfigObject
@@ -904,9 +936,9 @@ var Config ConfigObject
 func ReadConfigFile() *ConfigObject <span class="cov8" title="1">{
 
         // Set default path if we are not passed one
-        path := os.Getenv("CERESDB_CONFIG_PATH")
+        path := os.Getenv(ENV_PREFIX + "CONFIG_PATH")
         if path == "" </span><span class="cov8" title="1">{
-                path = ".ceresdb/config/config.json"
+                path = DEFAULT_CONFIG_PATH
         }</span>
 
         // Open our jsonFile
@@ -932,7 +964,7 @@ func ReadConfigFile() *ConfigObject <span class="cov8" title="1">{
 
                 <span class="cov8" title="1">value := field.Tag.Get("env")
                 if value != "" </span><span class="cov8" title="1">{
-                        val, present := os.LookupEnv(value)
+                        val, present := os.LookupEnv(ENV_PREFIX + value)
                         if present </span><span class="cov8" title="1">{
                                 w := reflect.ValueOf(&amp;Config).Elem().FieldByName(t.Field(i).Name)
                                 x := getAttr(&amp;Config, t.Field(i).Name).Kind().String()
@@ -943,38 +975,38 @@ func ReadConfigFile() *ConfigObject <span class="cov8" title="1">{
                                                 if err == nil </span><span class="cov8" title="1">{
                                                         w.SetInt(i)
                                                 }</span>
-                                        // case "int8":
-                                        //         i, err := strconv.ParseInt(val, 10, 8)
-                                        //         if err == nil {
-                                        //                 w.SetInt(i)
-                                        //         }
-                                        // case "int16":
-                                        //         i, err := strconv.ParseInt(val, 10, 16)
-                                        //         if err == nil {
-                                        //                 w.SetInt(i)
-                                        //         }
-                                        // case "int32":
-                                        //         i, err := strconv.ParseInt(val, 10, 32)
-                                        //         if err == nil {
-                                        //                 w.SetInt(i)
-                                        //         }
+                                        case "int8":<span class="cov0" title="0">
+                                                i, err := strconv.ParseInt(val, 10, 8)
+                                                if err == nil </span><span class="cov0" title="0">{
+                                                        w.SetInt(i)
+                                                }</span>
+                                        case "int16":<span class="cov0" title="0">
+                                                i, err := strconv.ParseInt(val, 10, 16)
+                                                if err == nil </span><span class="cov0" title="0">{
+                                                        w.SetInt(i)
+                                                }</span>
+                                        case "int32":<span class="cov0" title="0">
+                                                i, err := strconv.ParseInt(val, 10, 32)
+                                                if err == nil </span><span class="cov0" title="0">{
+                                                        w.SetInt(i)
+                                                }</span>
                                         case "string":<span class="cov8" title="1">
                                                 w.SetString(val)</span>
-                                                // case "float32":
-                                                //         i, err := strconv.ParseFloat(val, 32)
-                                                //         if err == nil {
-                                                //                 w.SetFloat(i)
-                                                //         }
-                                                // case "float", "float64":
-                                                //         i, err := strconv.ParseFloat(val, 64)
-                                                //         if err == nil {
-                                                //                 w.SetFloat(i)
-                                                //         }
-                                                // case "bool":
-                                                //         i, err := strconv.ParseBool(val)
-                                                //         if err == nil {
-                                                //                 w.SetBool(i)
-                                                //         }
+                                        case "float32":<span class="cov0" title="0">
+                                                i, err := strconv.ParseFloat(val, 32)
+                                                if err == nil </span><span class="cov0" title="0">{
+                                                        w.SetFloat(i)
+                                                }</span>
+                                        case "float", "float64":<span class="cov0" title="0">
+                                                i, err := strconv.ParseFloat(val, 64)
+                                                if err == nil </span><span class="cov0" title="0">{
+                                                        w.SetFloat(i)
+                                                }</span>
+                                        case "bool":<span class="cov0" title="0">
+                                                i, err := strconv.ParseBool(val)
+                                                if err == nil </span><span class="cov0" title="0">{
+                                                        w.SetBool(i)
+                                                }</span>
                                         }
                                 }
                         }
@@ -1325,7 +1357,6 @@ import (
         "ceresdb/utils"
         "encoding/base64"
         "fmt"
-        "log"
         "os"
         "path/filepath"
         "strings"
@@ -1333,10 +1364,10 @@ import (
 
 var InvalidSchemaTypes = []string{"DICT", "LIST", "ANY"}
 
+const EMPTY_FIELD_VALUE = ".ceresdb.empty-value"
+
 func Add(database, collection string, datum map[string]interface{}, schemaData map[string]string) error <span class="cov8" title="1">{
-        log.Println("Adding indices")
         for key, val := range datum </span><span class="cov8" title="1">{
-                log.Printf("Key: %v, value: %v", key, val)
                 if utils.Contains(InvalidSchemaTypes, schemaData[key]) </span><span class="cov0" title="0">{
                         continue</span>
                 }
@@ -1353,7 +1384,10 @@ func Add(database, collection string, datum map[string]interface{}, schemaData m
                         continue</span>
                 }
                 <span class="cov8" title="1">stringVal := fmt.Sprintf("%v", val)
-                encodedVal := base64.StdEncoding.EncodeToString([]byte(stringVal))
+                if len(stringVal) == 0 </span><span class="cov0" title="0">{
+                        stringVal = EMPTY_FIELD_VALUE
+                }</span>
+                <span class="cov8" title="1">encodedVal := base64.StdEncoding.EncodeToString([]byte(stringVal))
                 dirPath := filepath.Join(config.Config.IndexDir, database, collection, key)
                 filePath := filepath.Join(dirPath, encodedVal)
                 allPath := filepath.Join(config.Config.IndexDir, database, collection, "all")
@@ -1397,7 +1431,10 @@ func Delete(database, collection string, datum map[string]interface{}, schemaDat
                         continue</span>
                 }
                 <span class="cov8" title="1">stringVal := fmt.Sprintf("%v", val)
-                encodedVal := base64.StdEncoding.EncodeToString([]byte(stringVal))
+                if len(stringVal) == 0 </span><span class="cov0" title="0">{
+                        stringVal = EMPTY_FIELD_VALUE
+                }</span>
+                <span class="cov8" title="1">encodedVal := base64.StdEncoding.EncodeToString([]byte(stringVal))
                 filePath := filepath.Join(config.Config.IndexDir, database, collection, key, encodedVal)
                 data, err := os.ReadFile(filePath)
                 if err != nil </span><span class="cov8" title="1">{

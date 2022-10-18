@@ -42,7 +42,7 @@ clean:  ## Remove build and test artifacts
 	rm test/stress/*.png || true
 	rm -r test/*/.*cache* || true
 	rm -r test/*/*cache* || true
-	docker kill ceresdb || true
+	docker-compose rm -f
 
 docs:
 	cd docs && make html
@@ -65,19 +65,21 @@ test-regression:  ## Run regression tests against CeresDB
 	@if [ "$(IMAGE_BUILT)" = "false" ] ; then \
         make build-docker ; \
     fi
-	docker kill ceresdb || true
-	docker run --rm -p 7437:7437 --name ceresdb -d ceresdb
+	docker-compose rm -f
+	docker-compose up &
+	sleep 5
 	cd test/regression && pytest
-	docker kill ceresdb || true
-
+	docker-compose down
+	
 test-stress:  ## Run stress tests against CeresDB
 	@if [ "$(IMAGE_BUILT)" = "false" ] ; then \
         make build-docker ; \
     fi
-	docker kill ceresdb || true
-	docker run --rm -p 7437:7437 --name ceresdb -d ceresdb
+	docker-compose rm -f
+	docker-compose up &
+	sleep 5
 	cd test/stress && pytest --durations=0
-	docker kill ceresdb || true
+	docker-compose down
 
 test-unit: clean  ## Run unit tests against CeresDB
 	mkdir -p test/free_space_no_file

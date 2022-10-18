@@ -34,29 +34,17 @@ def test_stress_1000():
     conn.query("delete collection foo.bar")
     conn.query("delete database foo")
 
-    get_send_x = [(i+1) * max_count for i in range(0, iterations)]
-    get_send_y = [float(datum["send"]) for datum in timings_get]
-    get_process_x = [(i+1) * max_count for i in range(0, iterations)]
-    get_process_y = [float(datum["process"]) for datum in timings_get]
-    get_receive_x = [(i+1) * max_count for i in range(0, iterations)]
-    get_receive_y = [float(datum["receive"]) for datum in timings_get]
+    get_x = [(i+1) * max_count for i in range(0, iterations)]
+    get_y = [float(datum) for datum in timings_get]
 
-    post_send_x = [(i+1) * max_count for i in range(0, iterations)]
-    post_send_y = [float(datum["send"]) for datum in timings_post]
-    post_process_x = [(i+1) * max_count for i in range(0, iterations)]
-    post_process_y = [float(datum["process"]) for datum in timings_post]
-    post_receive_x = [(i+1) * max_count for i in range(0, iterations)]
-    post_receive_y = [float(datum["receive"]) for datum in timings_post]
+    post_x = [(i+1) * max_count for i in range(0, iterations)]
+    post_y = [float(datum) for datum in timings_post]
 
-    plt.plot(get_send_x, get_send_y, label = "Send")
-    plt.plot(get_process_x, get_process_y, label = "Process")
-    plt.plot(get_receive_x, get_receive_y, label = "Receive")
+    plt.plot(get_x, get_y)
     plt.legend()
     plt.savefig('get.png')
     plt.clf()
 
-    plt.plot(post_send_x, post_send_y, label = "Send")
-    plt.plot(post_process_x, post_process_y, label = "Process")
-    plt.plot(post_receive_x, post_receive_y, label = "Receive")
+    plt.plot(post_x, post_y)
     plt.legend()
     plt.savefig('post.png')

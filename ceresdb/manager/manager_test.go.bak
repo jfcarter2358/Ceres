@@ -464,7 +464,7 @@ func TestProcessFilterBool(t *testing.T) {
 	data := []map[string]interface{}{{"foo": true}, {"foo": true}, {"foo": true}, {"foo": false}, {"foo": false}, {"foo": false}, {"foo": false}, {"foo": false}}
 	Write("filter", "test", data)
 
-	files, _ := filePathWalkDir("../../test/.ceresdb/data/filter/test")
+	files, _ := FilePathWalkDir("../../test/.ceresdb/data/filter/test")
 	id_prefix := filepath.Base(files[0])
 
 	expectedData := []string{id_prefix + ".0", id_prefix + ".1", id_prefix + ".2"}
@@ -496,7 +496,7 @@ func TestProcessFilterFloat(t *testing.T) {
 	data := []map[string]interface{}{{"foo": 1.0}, {"foo": 2.0}, {"foo": 2.0}, {"foo": 3.0}, {"foo": 4.0}, {"foo": 5.0}, {"foo": 6.0}, {"foo": 7.0}}
 	Write("filter", "test", data)
 
-	files, _ := filePathWalkDir("../../test/.ceresdb/data/filter/test")
+	files, _ := FilePathWalkDir("../../test/.ceresdb/data/filter/test")
 	id_prefix := filepath.Base(files[0])
 
 	expectedData := []string{id_prefix + ".0", id_prefix + ".1", id_prefix + ".2"}
@@ -528,7 +528,7 @@ func TestProcessFilterString(t *testing.T) {
 	data := []map[string]interface{}{{"foo": "1"}, {"foo": "2"}, {"foo": "2"}, {"foo": "3"}, {"foo": "4"}, {"foo": "5"}, {"foo": "6"}, {"foo": "7"}}
 	Write("filter", "test", data)
 
-	files, _ := filePathWalkDir("../../test/.ceresdb/data/filter/test")
+	files, _ := FilePathWalkDir("../../test/.ceresdb/data/filter/test")
 	id_prefix := filepath.Base(files[0])
 
 	expectedData := []string{id_prefix + ".0", id_prefix + ".1", id_prefix + ".2"}
@@ -560,7 +560,7 @@ func TestProcessFilterGT(t *testing.T) {
 	data := []map[string]interface{}{{"foo": 1}, {"foo": 2}, {"foo": 2}, {"foo": 3}, {"foo": 4}, {"foo": 5}, {"foo": 6}, {"foo": 7}}
 	Write("filter", "test", data)
 
-	files, _ := filePathWalkDir("../../test/.ceresdb/data/filter/test")
+	files, _ := FilePathWalkDir("../../test/.ceresdb/data/filter/test")
 	id_prefix := filepath.Base(files[0])
 
 	expectedData := []string{id_prefix + ".3", id_prefix + ".4", id_prefix + ".5", id_prefix + ".6", id_prefix + ".7"}
@@ -592,7 +592,7 @@ func TestProcessFilterGE(t *testing.T) {
 	data := []map[string]interface{}{{"foo": 1}, {"foo": 2}, {"foo": 2}, {"foo": 3}, {"foo": 4}, {"foo": 5}, {"foo": 6}, {"foo": 7}}
 	Write("filter", "test", data)
 
-	files, _ := filePathWalkDir("../../test/.ceresdb/data/filter/test")
+	files, _ := FilePathWalkDir("../../test/.ceresdb/data/filter/test")
 	id_prefix := filepath.Base(files[0])
 
 	expectedData := []string{id_prefix + ".1", id_prefix + ".2", id_prefix + ".3", id_prefix + ".4", id_prefix + ".5", id_prefix + ".6", id_prefix + ".7"}
@@ -624,7 +624,7 @@ func TestProcessFilterLT(t *testing.T) {
 	data := []map[string]interface{}{{"foo": 1}, {"foo": 2}, {"foo": 2}, {"foo": 3}, {"foo": 4}, {"foo": 5}, {"foo": 6}, {"foo": 7}}
 	Write("filter", "test", data)
 
-	files, _ := filePathWalkDir("../../test/.ceresdb/data/filter/test")
+	files, _ := FilePathWalkDir("../../test/.ceresdb/data/filter/test")
 	id_prefix := filepath.Base(files[0])
 
 	expectedData := []string{id_prefix + ".0"}
@@ -656,7 +656,7 @@ func TestProcessFilterLE(t *testing.T) {
 	data := []map[string]interface{}{{"foo": 1}, {"foo": 2}, {"foo": 2}, {"foo": 3}, {"foo": 4}, {"foo": 5}, {"foo": 6}, {"foo": 7}}
 	Write("filter", "test", data)
 
-	files, _ := filePathWalkDir("../../test/.ceresdb/data/filter/test")
+	files, _ := FilePathWalkDir("../../test/.ceresdb/data/filter/test")
 	id_prefix := filepath.Base(files[0])
 
 	expectedData := []string{id_prefix + ".0", id_prefix + ".1", id_prefix + ".2"}
@@ -688,7 +688,7 @@ func TestProcessFilterEQ(t *testing.T) {
 	data := []map[string]interface{}{{"foo": 1}, {"foo": 2}, {"foo": 2}, {"foo": 3}, {"foo": 4}, {"foo": 5}, {"foo": 6}, {"foo": 7}}
 	Write("filter", "test", data)
 
-	files, _ := filePathWalkDir("../../test/.ceresdb/data/filter/test")
+	files, _ := FilePathWalkDir("../../test/.ceresdb/data/filter/test")
 	id_prefix := filepath.Base(files[0])
 
 	expectedData := []string{id_prefix + ".1", id_prefix + ".2"}
@@ -720,7 +720,7 @@ func TestProcessFilterNE(t *testing.T) {
 	data := []map[string]interface{}{{"foo": 1}, {"foo": 2}, {"foo": 2}, {"foo": 3}, {"foo": 4}, {"foo": 5}, {"foo": 6}, {"foo": 7}}
 	Write("filter", "test", data)
 
-	files, _ := filePathWalkDir("../../test/.ceresdb/data/filter/test")
+	files, _ := FilePathWalkDir("../../test/.ceresdb/data/filter/test")
 	id_prefix := filepath.Base(files[0])
 
 	expectedData := []string{id_prefix + ".0", id_prefix + ".3", id_prefix + ".4", id_prefix + ".5", id_prefix + ".6", id_prefix + ".7"}
@@ -752,7 +752,7 @@ func TestProcessFilterAND(t *testing.T) {
 	data := []map[string]interface{}{{"foo": 1}, {"foo": 2}, {"foo": 2}, {"foo": 3}, {"foo": 4}, {"foo": 5}, {"foo": 6}, {"foo": 7}}
 	Write("filter", "test", data)
 
-	files, _ := filePathWalkDir("../../test/.ceresdb/data/filter/test")
+	files, _ := FilePathWalkDir("../../test/.ceresdb/data/filter/test")
 	id_prefix := filepath.Base(files[0])
 
 	expectedData := []string{id_prefix + ".3"}
@@ -788,7 +788,7 @@ func TestProcessFilterOR(t *testing.T) {
 	data := []map[string]interface{}{{"foo": 1}, {"foo": 2}, {"foo": 2}, {"foo": 3}, {"foo": 4}, {"foo": 5}, {"foo": 6}, {"foo": 7}}
 	Write("filter", "test", data)
 
-	files, _ := filePathWalkDir("../../test/.ceresdb/data/filter/test")
+	files, _ := FilePathWalkDir("../../test/.ceresdb/data/filter/test")
 	id_prefix := filepath.Base(files[0])
 
 	expectedData := []string{id_prefix + ".0", id_prefix + ".1", id_prefix + ".2", id_prefix + ".3", id_prefix + ".4", id_prefix + ".5", id_prefix + ".6", id_prefix + ".7"}
@@ -824,7 +824,7 @@ func TestProcessFilterXOR(t *testing.T) {
 	data := []map[string]interface{}{{"foo": 1}, {"foo": 2}, {"foo": 2}, {"foo": 3}, {"foo": 4}, {"foo": 5}, {"foo": 6}, {"foo": 7}}
 	Write("filter", "test", data)
 
-	files, _ := filePathWalkDir("../../test/.ceresdb/data/filter/test")
+	files, _ := FilePathWalkDir("../../test/.ceresdb/data/filter/test")
 	id_prefix := filepath.Base(files[0])
 
 	expectedData := []string{id_prefix + ".0", id_prefix + ".1", id_prefix + ".2", id_prefix + ".4", id_prefix + ".5", id_prefix + ".6", id_prefix + ".7"}
@@ -860,7 +860,7 @@ func TestProcessFilterNOT(t *testing.T) {
 	data := []map[string]interface{}{{"foo": 1}, {"foo": 2}, {"foo": 2}, {"foo": 3}, {"foo": 4}, {"foo": 5}, {"foo": 6}, {"foo": 7}}
 	Write("filter", "test", data)
 
-	files, _ := filePathWalkDir("../../test/.ceresdb/data/filter/test")
+	files, _ := FilePathWalkDir("../../test/.ceresdb/data/filter/test")
 	id_prefix := filepath.Base(files[0])
 
 	expectedData := []string{id_prefix + ".4", id_prefix + ".5", id_prefix + ".6", id_prefix + ".7"}
