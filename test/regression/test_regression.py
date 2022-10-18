@@ -256,3 +256,46 @@ def test_user():
     conn.query(f"delete user {json.dumps(input_data)}")
     data = conn.query("get user [\"username\",\"role\"] | ORDERASC username")
     assert data == expected_data
+
+def test_jq():
+    conn = Connection(CERESDB_USERNAME, CERESDB_PASSWORD, CERESDB_HOST, CERESDB_PORT)
+    # Delete resources
+    conn.query("delete database foo")
+    # Create resources
+    conn.query("post database foo")
+    conn.query("post collection foo.bar {\"item\":\"STRING\",\"price\":\"FLOAT\",\"in_stock\":\"BOOL\",\"count\":\"INT\"}")
+
+    # Get records when none exist
+    data = conn.query("get record foo.bar *")
+    assert data == []
+
+    # Post record
+    expected_data = [
+        {"item": "bolt", "price": 0.8, "in_stock": True, "count": 20},
+        {"item": "nail", "price": 0.3, "in_stock": True, "count": 10},
+        {"item": "nut", "price": 0.5, "in_stock": True, "count": 50},
+        {"item": "screw", "price": 0.2, "in_stock": False, "count": 0}
+    ]
+    input_data = [
+        {"item": "bolt", "price": 0.8, "in_stock": True, "count": 20},
+        {"item": "nail", "price": 0.3, "in_stock": True, "count": 10},
+        {"item": "nut", "price": 0.5, "in_stock": True, "count": 50},
+        {"item": "screw", "price": 0.2, "in_stock": False, "count": 0}
+    ]
+    conn.query(f"post record foo.bar {json.dumps(input_data)}")
+    data = conn.query("get record foo.bar [\"item\",\"price\",\"in_stock\",\"count\"] | ORDERASC item")
+    assert data == expected_data
+
+    # modify record
+    expected_data = [
+        {"item": "bolt", "price": 0.8, "in_stock": True, "count": 10},
+        {"item": "nail", "price": 0.3, "in_stock": True, "count": 10},
+        {"item": "nut", "price": 0.5, "in_stock": True, "count": 10},
+        {"item": "screw", "price": 0.2, "in_stock": False, "count": 10}
+    ]
+    data = conn.query("get record foo.bar [\"item\",\"price\",\"in_stock\",\"count\"] | jq '.[].count = 10'")
+    assert data == expected_data
+
+    # Delete resources
+    conn.query("delete collection foo.bar")
+    conn.query("delete database foo")
