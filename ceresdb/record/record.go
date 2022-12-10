@@ -54,6 +54,7 @@ func readData(dbIdent, colIdent, fileIdent string, blocks [][]int) ([]map[string
 			if blockIdx == blockLen {
 				break
 			}
+			fmt.Printf("%v, %v", blocks[blockIdx], len(blocks[blockIdx]))
 			cursor.Advance(blocks[blockIdx][0], blocks[blockIdx][1])
 		}
 		s, e = utils.ReadLine(r)
