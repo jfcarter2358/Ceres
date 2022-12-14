@@ -185,7 +185,9 @@ func handleQuery(query queue.QueueObject) ([]map[string]interface{}, error) {
 				if _, ok := data[0][".id"]; ok {
 					previousIDs = make([]string, 0)
 					for _, val := range data {
-						previousIDs = append(previousIDs, val[".id"].(string))
+						if val[".id"] != nil {
+							previousIDs = append(previousIDs, val[".id"].(string))
+						}
 					}
 				}
 			}
