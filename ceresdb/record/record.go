@@ -157,7 +157,6 @@ func overwriteData(dbIdent, colIdent, fileIdent string, blocks [][]int, data []m
 
 func patchData(dbIdent, colIdent, fileIdent string, blocks [][]int, data map[string]interface{}, schemaData map[string]string) error {
 	blockIdx := 0
-	blockLen := len(blocks)
 	cursor.Initialize(blocks[0][0], blocks[0][1], cursor.ModePatch)
 	newContents := make([]string, 0)
 
@@ -184,7 +183,7 @@ func patchData(dbIdent, colIdent, fileIdent string, blocks [][]int, data map[str
 		case cursor.OpNext:
 			blockIdx += 1
 			newContents = append(newContents, s+"\n")
-			if blockIdx == blockLen {
+			if blockIdx >= len(blocks) {
 				break
 			}
 			cursor.Advance(blocks[blockIdx][0], blocks[blockIdx][1])
@@ -203,7 +202,6 @@ func patchData(dbIdent, colIdent, fileIdent string, blocks [][]int, data map[str
 
 func deleteData(dbIdent, colIdent, fileIdent string, blocks [][]int, schemaData map[string]string) error {
 	blockIdx := 0
-	blockLen := len(blocks)
 	cursor.Initialize(blocks[0][0], blocks[0][1], cursor.ModeDelete)
 	newContents := make([]string, 0)
 
@@ -225,7 +223,7 @@ func deleteData(dbIdent, colIdent, fileIdent string, blocks [][]int, schemaData 
 		case cursor.OpNext:
 			blockIdx += 1
 			newContents = append(newContents, s+"\n")
-			if blockIdx == blockLen {
+			if blockIdx >= len(blocks) {
 				break
 			}
 			cursor.Advance(blocks[blockIdx][0], blocks[blockIdx][1])
