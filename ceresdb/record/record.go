@@ -30,7 +30,6 @@ type ToOverWriteStruct struct {
 
 func readData(dbIdent, colIdent, fileIdent string, blocks [][]int) ([]map[string]interface{}, error) {
 	blockIdx := 0
-	blockLen := len(blocks)
 	cursor.Initialize(blocks[0][0], blocks[0][1], cursor.ModeRead)
 	output := make([]map[string]interface{}, 0)
 
