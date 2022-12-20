@@ -128,7 +128,7 @@ func snapshotProcessor() {
 func queryProcessor() {
 	for {
 		if len(queue.Queue) > 0 {
-			if !queue.Queue[0].Finished {
+			if queue.Queue[0] != nil && !queue.Queue[0].Finished {
 				data, err := handleQuery(*queue.Queue[0])
 				queue.Queue[0].Data = data
 				queue.Queue[0].Err = err
