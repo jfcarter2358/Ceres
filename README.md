@@ -436,7 +436,11 @@ and then setting the environment variable `CERESDB_CONFIG_PATH` to point to said
 - [x] Leader/follower DB replication
 
 **v1.2.0**
+- [ ] Concurrent data extraction
 
+**v1.3.0**
+
+- [ ] JSON dot notation field selection
 - [ ] Better Index management
     - [ ] Multi-word string indices
     - [ ] List indices
@@ -446,6 +450,8 @@ and then setting the environment variable `CERESDB_CONFIG_PATH` to point to said
     - [ ] Date
     - [ ] Datetime
     - [ ] Time
+- [ ] Defined constants
+    - [ ] Now
 - [ ] Filter mathematical operations
     - [ ] `+`
     - [ ] `-`
@@ -454,7 +460,7 @@ and then setting the environment variable `CERESDB_CONFIG_PATH` to point to said
     - [ ] `^`
 - [ ] Token authentication
 
-**v1.2.0**
+**v1.4.0**
 
 - [ ] Better support for concurrency
 
