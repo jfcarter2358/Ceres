@@ -285,7 +285,7 @@ Allows you to process data piped into the command using a JQ string.
 
 .. note:: The JQ command can be used to modify data entirely on the server by piping a ``GET`` command into a ``JQ`` command and then piping that into a ``PUT`` command
 
-.. note:: Do note use the JQ operator to select data (i.e. `JQ '.[].hello'` on data structured like `{"hello":"..."}`) as this will produce an invalid result (all data should be returned as a list of dictionaries, not single type values)
+.. note:: Do not use the JQ operator to select data (i.e. `JQ '.[].hello'` on data structured like `{"hello":"..."}`) as this will produce an invalid result (all data should be returned as a list of dictionaries, not single type values)
 
 
 Comparison Operators
