@@ -192,8 +192,11 @@ func handleQuery(query queue.QueueObject) ([]map[string]interface{}, error) {
 				}
 			}
 		}
+		logging.DEBUG(fmt.Sprintf("Action: %v", action))
+		logging.TRACE(fmt.Sprintf("Data: %v", data))
 		dataOut = data
 	}
+	logging.TRACE(fmt.Sprintf("Data out: %v", dataOut))
 	logging.DEBUG("Done!")
 	return dataOut, nil
 }

@@ -3,12 +3,12 @@
 package manager
 
 import (
-	"bytes"
 	"ceresdb/aql"
 	"ceresdb/collection"
 	"ceresdb/config"
 	"ceresdb/database"
 	"ceresdb/index"
+	"ceresdb/logging"
 	"ceresdb/permit"
 	"ceresdb/record"
 	"ceresdb/schema"
@@ -18,13 +18,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 
+	"github.com/itchyny/gojq"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -458,26 +459,33 @@ func ProcessCount(action aql.Action, previousIDs []string) ([]map[string]interfa
 }
 
 func ProcessJQ(action aql.Action, previousData []map[string]interface{}) ([]map[string]interface{}, error) {
-
-	payloadBytes, err := json.Marshal(previousData)
-	if err != nil {
-		return nil, err
-	}
-	payloadString := strings.Replace(string(payloadBytes), "'", "\\'", -1)
-
-	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf("echo '%s' | jq '%s'", payloadString, action.JQ))
-	var outb, errb bytes.Buffer
-	cmd.Stdout = &outb
-	cmd.Stderr = &errb
-
-	err = cmd.Run()
-	if err != nil {
-		return nil, errors.New(errb.String())
-	}
-
 	var output []map[string]interface{}
-	json.Unmarshal(outb.Bytes(), &output)
 
+	query, err := gojq.Parse(action.JQ)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	inputBytes, _ := json.Marshal(previousData)
+
+	var input []any
+	json.Unmarshal(inputBytes, &input)
+
+	iter := query.Run(input) // or query.RunWithContext
+	for {
+		value, ok := iter.Next()
+		if !ok {
+			break
+		}
+		if err, ok := value.(error); ok {
+			return nil, err
+		}
+		mapValue, ok := value.(map[string]interface{})
+		if !ok {
+			return nil, errors.New("jq result is not of type []map[string]interface{}")
+		}
+		output = append(output, mapValue)
+	}
 	return output, nil
 }
 
@@ -515,6 +523,7 @@ func ProcessAction(action aql.Action, previousIDs []string, previousData []map[s
 		return data, err
 	case "JQ":
 		data, err := ProcessJQ(action, previousData)
+		logging.TRACE(fmt.Sprintf("Data 2: %v", data))
 		return data, err
 	}
 	return nil, nil
