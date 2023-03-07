@@ -13,6 +13,7 @@ Welcome to CeresDB's documentation!
    running.rst
    schema.rst
    replication.rst
+   remote_logging.rst
 
 About
 =====

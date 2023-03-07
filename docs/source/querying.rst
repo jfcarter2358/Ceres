@@ -152,7 +152,7 @@ Deletes a record
 Get
 ---
 
-Returns the databases contained in the CeresDB instance
+Returns the records within a specific database and collection
 
 .. code-block::
 
@@ -163,11 +163,11 @@ Post
 
 .. note:: To use data piped into the post command, omit the dictionary at the end of the command
    
-Creates a new database
+Creates a new record
 
 .. code-block::
 
-   POST DATABASE <name of database>.<name of collection> <dict or list of dicts of data to insert>
+   POST RECORD <name of database>.<name of collection> <dict or list of dicts of data to insert>
 
 Patch
 -----
@@ -284,6 +284,8 @@ Allows you to process data piped into the command using a JQ string.
 .. note:: The JQ string *must* be wrapped in single quotes
 
 .. note:: The JQ command can be used to modify data entirely on the server by piping a ``GET`` command into a ``JQ`` command and then piping that into a ``PUT`` command
+
+.. note:: Do note use the JQ operator to select data (i.e. `JQ '.[].hello'` on data structured like `{"hello":"..."}`) as this will produce an invalid result (all data should be returned as a list of dictionaries, not single type values)
 
 
 Comparison Operators
