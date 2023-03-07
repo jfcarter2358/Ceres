@@ -6,5 +6,30 @@ services:
   ceresdb:
     image: "ceresdb"
     ports:
-      - "127.0.0.1:7437:7437"
+      - "0.0.0.0:7437:7437"
+    tty: true
+    environment:
+      CERESDB_WHITETAIL_LOGGING_ENABLED: "true"
+      CERESDB_SLEEP: "5"
+    depends_on:
+      - whitetail
+  whitetail:
+    image: "whitetail"
+    environment:
+      # WHITETAIL_BASE_PATH: "/router/whitetail/whitetail/9001"
+      WHITETAIL_DB: '{"username":"ceresdb","password":"ceresdb","name":"whitetail","port":7438,"host":"whitetail-db"}'
+    ports:
+      - "0.0.0.0:9001:9001"
+      - "0.0.0.0:9002:9002"
+      - "0.0.0.0:9003:9003"
+    depends_on:
+      - "whitetail-db"
+    tty: true
+  whitetail-db:
+    image: "ceresdb"
+    ports:
+      - "0.0.0.0:7438:7438"
+    environment:
+      CERESDB_LOG_LEVEL: "info"
+      CERESDB_PORT: "7438"
     tty: true

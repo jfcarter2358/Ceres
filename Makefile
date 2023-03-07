@@ -51,7 +51,7 @@ publish-docker: clean  ## Build and publish the CeresDB docker image
 	docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t jfcarter2358/ceresdb:$$(cat ceresdb/VERSION) --push .
 
 run-docker:  ## Run CeresDB in Docker
-	docker run -p 7437:7437 ceresdb
+	docker run --rm -p 7437:7437 --name ceresdb --env CERESDB_WHITETAIL_LOGGING_ENABLED=true ceresdb
 
 run-local:  ## Run the local CeresDB binary
 	cd dist; ./ceresdb
