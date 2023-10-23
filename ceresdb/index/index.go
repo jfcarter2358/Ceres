@@ -1,160 +1,110 @@
-// index.go
-
 package index
 
-import (
-	"ceresdb/config"
-	"ceresdb/utils"
-	"encoding/base64"
-	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
-)
+const STRING_TERM = "//x00"
 
-var InvalidSchemaTypes = []string{"DICT", "LIST", "ANY"}
+//                db         col        var
+var Indices = map[string]map[string]interface{}
 
-const EMPTY_FIELD_VALUE = ".ceresdb.empty-value"
 
-func Add(database, collection string, datum map[string]interface{}, schemaData map[string]string) error {
-	for key, val := range datum {
-		if utils.Contains(InvalidSchemaTypes, schemaData[key]) {
-			continue
+func BuildIndex(database, collection string, schema interface{}) {
+	if _, ok := Indices[database]; ok {
+		Indices[database] = make(map[string]interface{})
+	}
+	idx := buildIndexAgainstSchema(schema)
+	Indices[database][collection] = idx
+}
+
+// This functino assumes that the schema has already been verified
+func buildIndexAgainstSchema(schema interface{}) interface{} {
+	if ok := schema.(string); ok {
+		typeName := schema.(string)
+		switch typeName {
+		case DATATYPE_STRING:
+			return map[string][]string
+		case DATATYPE_INT:
+			return map[int][]string
+		case DATATYPE_FLOAT:
+			return map[float64][]string}{}
+		case DATATYPE_BOOL:
+			return map[bool][]string{}
 		}
-		if key == ".id" {
-			continue
+		return nil
+	}
+
+	if ok := schema.(map[string]interface{}); ok {
+		dict := schema.(map[string]interface{})
+		if len(dict) == 0 {
+			return nil
 		}
-		if key == "password" && database == "_auth" {
-			continue
+		out := map[string]interface{}
+		for child, val := range dict {
+			out[child] = buildIndexAgainstSchema(dict[child])
 		}
-		if _, ok := val.([]interface{}); ok {
-			continue
-		}
-		if _, ok := val.(map[string]interface{}); ok {
-			continue
-		}
-		stringVal := fmt.Sprintf("%v", val)
-		if len(stringVal) == 0 {
-			stringVal = EMPTY_FIELD_VALUE
-		}
-		encodedVal := base64.StdEncoding.EncodeToString([]byte(stringVal))
-		dirPath := filepath.Join(config.Config.IndexDir, database, collection, key)
-		filePath := filepath.Join(dirPath, encodedVal)
-		allPath := filepath.Join(config.Config.IndexDir, database, collection, "all")
-		if _, err := os.Stat(dirPath); os.IsNotExist(err) {
-			err = os.MkdirAll(dirPath, 0755)
-			if err != nil {
-				return err
-			}
-		}
-		f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			return err
-		}
-		_, err = f.WriteString(datum[".id"].(string) + "\n")
-		if err != nil {
-			return err
-		}
-		f.Close()
-		f, err = os.OpenFile(allPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			return err
-		}
-		_, err = f.WriteString(datum[".id"].(string) + "\n")
-		if err != nil {
-			return err
-		}
-		f.Close()
+		return out
+	}
+
+	list := schema.([]interface{})
+	if ok := list[0].(string); ok {
+		return buildIndexAgainstSchema(list[0])
 	}
 	return nil
 }
 
-func Delete(database, collection string, datum map[string]interface{}, schemaData map[string]string) error {
-	for key, val := range datum {
-		if key == ".id" {
-			continue
-		}
-		if key == "password" && database == "_auth" {
-			continue
-		}
-		if utils.Contains(InvalidSchemaTypes, schemaData[key]) {
-			continue
-		}
-		stringVal := fmt.Sprintf("%v", val)
-		if len(stringVal) == 0 {
-			stringVal = EMPTY_FIELD_VALUE
-		}
-		encodedVal := base64.StdEncoding.EncodeToString([]byte(stringVal))
-		filePath := filepath.Join(config.Config.IndexDir, database, collection, key, encodedVal)
-		data, err := os.ReadFile(filePath)
-		if err != nil {
-			return err
-		}
-		indices := strings.Split(string(data), "\n")
-		indices = removeIndex(indices, datum[".id"].(string))
-		if len(indices) == 1 {
-			if err = os.Remove(filePath); err != nil {
-				return err
-			}
-		} else {
-			os.WriteFile(filePath, []byte(strings.Join(indices, "\n")), 0644)
-		}
-		allPath := filepath.Join(config.Config.IndexDir, database, collection, "all")
-		data, err = os.ReadFile(allPath)
-		if err != nil {
-			return err
-		}
-		indices = strings.Split(string(data), "\n")
-		indices = removeIndex(indices, datum[".id"].(string))
-		os.WriteFile(allPath, []byte(strings.Join(indices, "\n")), 0644)
+func AddToIndex(id string, keys []string, schema interface{}, obj interface{}) error {
+	if len(keys) > 1 {
+		Indices
 	}
-	return nil
 }
 
-func Update(database, collection string, oldDatum, newDatum map[string]interface{}, schemaData map[string]string) error {
-	if err := Delete(database, collection, oldDatum, schemaData); err != nil {
-		return err
+func addAgainstIndex(id string, keys[string], idx, schema, obj interface{}) {
+	if idx == nil {
+		return
 	}
-	if err := Add(database, collection, newDatum, schemaData); err != nil {
-		return err
-	}
-	return nil
-}
+	if len(keys) == 1 {
+		typeName := schema.(string)
+		switch typeName {
+		case schema.DATATYPE_STRING:
+			parts := strings.Split(obj.(string))
+			if len(parts)
+		case schema.DATATYPE_INT:
 
-func Get(database, collection, key, value string) ([]string, error) {
-	encodedVal := base64.StdEncoding.EncodeToString([]byte(value))
-	filePath := filepath.Join(config.Config.IndexDir, database, collection, key, encodedVal)
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, err
-	}
-	indices := strings.Split(string(data), "\n")
-	return indices[:len(indices)-1], nil
-}
+		case schema.DATATYPE_FLOAT:
 
-func All(database, collection string) ([]string, error) {
-	filePath := filepath.Join(config.Config.IndexDir, database, collection, "all")
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, err
-	}
-	indices := strings.Split(string(data), "\n")
-	return indices[:len(indices)-1], nil
-}
+		case schema.DATATYPE_BOOL:
 
-func removeIndex(indices []string, index string) []string {
-	idx := linearSearch(indices, index)
-	if idx != -1 {
-		return append(indices[:idx], indices[idx+1:]...)
-	}
-	return indices
-}
-
-func linearSearch(s []string, val string) int {
-	for i, v := range s {
-		if v == val {
-			return i
 		}
+		// if ok := schema.(string); ok {
+		// 	typeName := schema.(string)
+		// 	switch typeName {
+		// 	case schema.DATATYPE_STRING:
+		// 		val := obj.(map[string]interface{})
+		// 		totalString := fmt.Sprintf("%s%s", val, STRING_TERM)
+		// 		if item, ok := obj[totalString]; ok {
+		// 			temp := item.([]interface{})
+		// 			obj[totalString] = append(obj[totalString], id)
+		// 		} else {
+		// 			obj[totalString] = []string{id}
+		// 		}
+		// 		parts := strings.Split(val, " ")
+		// 		if len(parts) > 1 {
+		// 			for _, part := range parts {
+		// 				if item, ok := obj[part]; ok {
+		// 					temp := item.([]interface{})
+		// 					obj[part] = append(obj[part], id)
+		// 				} else {
+		// 					obj[part] = []string{id}
+		// 				}
+		// 			}
+		// 		}
+		// 	case schema.DATATYPE_INT:
+		// 		val := obj.(map[int]interface{})
+		// 		if item, ok := obj[]
+		// 	case schema.DATATYPE_FLOAT:
+
+		// 	case schema.DATATYPE_BOOL:
+
+		// 	}
+		// }
 	}
-	return -1
+
 }

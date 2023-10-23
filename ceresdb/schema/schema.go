@@ -13,151 +13,134 @@ import (
 	"path/filepath"
 )
 
-type SchemaCollection struct {
-	Types map[string]string
+const DATATYPE_STRING = "string"
+const DATATYPE_INT = "int"
+const DATATYPE_FLOAT = "float"
+const DATATYPE_BOOL = "bool"
+const DATATYPE_BYTE = "byte"
+const DATATYPE_ANY = "any"
+const DATATYPE_LIST = "list"
+const DATATYPE_DICT = "dict"
+
+Schemas = make(map[string]map[string][]interface{})
+
+// Validates if an object matches a schema for a specific database and collectios
+// database and collection names are _not_ validated in this function, instead
+// they should be validated in the query pre-processor
+func ValidateSchema(database string, collection string, data interface{}) error {
+	s := Schemas[database][collection]
+	return validateDataAgainstSchema(".", s, data)
 }
 
-type SchemaDatabase struct {
-	Collections map[string]SchemaCollection
+// Traverses the object to check comparing each object to the provided schema
+func validateDataAgainstSchema(key string, schema, object interface{}) error {
+	if ok := schema.(string); ok {
+		typeName := schema.(string)
+		switch typeName {
+			case DATATYPE_ANY:
+				return nil
+			case DATATYPE_STRING:
+				if ok := object.(string) !ok {
+					return fmt.Errorf("value at %s does not match type %s", key, typeName)
+				}
+			case DATATYPE_INT:
+				if ok := object.(int) !ok {
+					return fmt.Errorf("value at %s does not match type %s", key, typeName)
+				}
+			case DATATYPE_FLOAT:
+				if ok := object.(float64) !ok {
+					return fmt.Errorf("value at %s does not match type %s", key, typeName)
+				}
+			case DATATYPE_BOOL:
+				if ok := object.(bool) !ok {
+					return fmt.Errorf("value at %s does not match type %s", key, typeName)
+				}
+			case DATATYPE_BYTE:
+				if ok := object.(byte) !ok {
+					return fmt.Errorf("value at %s does not match type %s", key, typeName)
+				}
+			default:
+				return fmt.Errorf("invalid type: %s", typeName)
+		}
+		return nil
+	}
+
+	if ok := schema.(map[string]interface{}); ok {
+		if ok := data.(map[string]interface{}); ok {
+			dict := data.(map[string]interface{})
+			for child, val := range dict {
+				if err := ValidateSchema(fmt.Sprintf("%s.%s", key, child), schema.(map[string]interface{})[child], data[child]); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+		return fmt.Errorf("value at %s does not match type dict")
+	}
+
+	if ok := data.([]interface{}); ok {
+		list := data.([]interface{})
+		if for _, val := range list {
+			if err := validateDataAgainstSchema(fmt.Sprintf("%s[%d]", key, idx), schema.([]interface{})[0], val); err != nil {
+				return err
+			}
+		}
+	}
+	return fmy.Errorf("value at %s does not match type list")
+
 }
 
-type SchemaStruct struct {
-	Databases map[string]SchemaDatabase
-}
-
-var Schema SchemaStruct
-
-func LoadSchema() error {
-	path := filepath.Join(config.Config.HomeDir, "schema.json")
-
-	// Open our jsonFile
-	jsonFile, err := os.Open(path)
-
-	// If os.Open returns an error then handle it
-	if err != nil {
+// Validates a schema against the grammar
+func BuildSchema(database, collection string schema interface{}) error {
+	if err := validateDataAgainstGrammar(database, collection, schema); err != nil {
 		return err
 	}
-
-	// Read and unmarshal the JSON
-	byteValue, _ := ioutil.ReadAll(jsonFile)
-
-	var f interface{}
-
-	// Read the JSON
-	err = json.Unmarshal(byteValue, &f)
-	if err != nil {
-		return err
+	if _, ok := Schemas[database]; !ok {
+		Schemas[database] = make(map[string]interface{})
 	}
-
-	itemsMap := f.(map[string]interface{})
-	Schema.Databases = make(map[string]SchemaDatabase)
-
-	// Loop through the top-level items (database names)
-	for dbKey, dbVal := range itemsMap {
-		dbItem := SchemaDatabase{}
-		dbItem.Collections = make(map[string]SchemaCollection)
-		dbItemsMap := dbVal.(map[string]interface{})
-
-		// Loop through the 2nd-level items (collection names)
-		for colKey, colVal := range dbItemsMap {
-			colItem := SchemaCollection{}
-			colItem.Types = make(map[string]string)
-			colItemsMap := colVal.(map[string]interface{})
-
-			// Loop through the 3rd-level items (types)
-			for typeKey, typeVal := range colItemsMap {
-				colItem.Types[typeKey] = typeVal.(string)
-			}
-
-			dbItem.Collections[colKey] = colItem
-		}
-		Schema.Databases[dbKey] = dbItem
-	}
-
+	Schemas[database][collection] = schema
 	return nil
 }
 
-func WriteSchema() error {
-	path := filepath.Join(config.Config.HomeDir, "schema.json")
-
-	output := make(map[string]interface{})
-	for dbKey, db := range Schema.Databases {
-		dbInterface := make(map[string]interface{})
-		for colKey, col := range db.Collections {
-			colInterface := make(map[string]string)
-			for typeKey, typeVal := range col.Types {
-
-				colInterface[typeKey] = typeVal
-			}
-			dbInterface[colKey] = colInterface
-		}
-		output[dbKey] = dbInterface
-	}
-
-	freeSpaceContents, _ := json.MarshalIndent(output, "", "    ")
-	_ = ioutil.WriteFile(path, freeSpaceContents, 0644)
-
-	return nil
-}
-
-func ValidateSchemaCollection(schemaCollection map[string]string) error {
-	validTypes := []string{"INT", "BOOL", "FLOAT", "STRING", "DICT", "LIST", "ANY"}
-	for _, val := range schemaCollection {
-		if !utils.Contains(validTypes, val) {
-			return errors.New(fmt.Sprintf("Invalid schema type: %v, valid types are 'INT', 'BOOL', 'FLOAT', 'STRING', 'DICT', 'LIST', or 'ANY'", val))
-		}
-	}
-	return nil
-}
-
-func Get(database, collection string) map[string]string {
-	return Schema.Databases[database].Collections[collection].Types
-}
-
-func ValidateDataAgainstSchema(database, collection string, data []map[string]interface{}) error {
-	schemaCollection := Schema.Databases[database].Collections[collection]
-	for idx, datum := range data {
-		for key, val := range datum {
-			if key == ".id" {
+// Traverses the object to check if each element is a valid schema
+func validateDataAgainstGrammar(key string, schema interface{}) error {
+	if ok := schema.(string); ok {
+		typeName := schema.(string)
+		switch typeName {
+			case DATATYPE_ANY:
 				continue
-			}
-			if _, ok := schemaCollection.Types[key]; !ok {
-				return errors.New(fmt.Sprintf("Key does not exist in collection schema: %v", key))
-			}
+			case DATATYPE_STRING:
+				continue
+			case DATATYPE_INT:
+				continue
+			case DATATYPE_FLOAT:
+				continue
+			case DATATYPE_BOOL:
+				continue
+			case DATATYPE_BYTE:
+				continue
+			default:
+				return fmt.Errorf("invalid type at %s: %s", key, type)
+		}
+		return nil
+	}
 
-			switch schemaCollection.Types[key] {
-			case "STRING":
-				if _, ok := val.(string); !ok {
-					return errors.New(fmt.Sprintf("Value '%v' at key '%v' in record %v does not conform to schema type %v", val, key, idx, schemaCollection.Types[key]))
-				}
-			case "INT":
-				// To us it's an int value
-				// But under the hood golang is converting it to a float64 when coming from a JSON
-				// string
-				// It won't be an issue since the data gets stored as text anyway
-				if _, ok := val.(float64); !ok {
-					if _, ok := val.(int); !ok {
-						return errors.New(fmt.Sprintf("Value '%v' at key '%v' in record %v does not conform to schema type %v", val, key, idx, schemaCollection.Types[key]))
-					}
-				}
-			case "FLOAT":
-				if _, ok := val.(float64); !ok {
-					return errors.New(fmt.Sprintf("Value '%v' at key '%v' in record %v does not conform to schema type %v", val, key, idx, schemaCollection.Types[key]))
-				}
-			case "BOOL":
-				if _, ok := val.(bool); !ok {
-					return errors.New(fmt.Sprintf("Value '%v' at key '%v' in record %v does not conform to schema type %v", val, key, idx, schemaCollection.Types[key]))
-				}
-			case "DICT":
-				if _, ok := val.(map[string]interface{}); !ok {
-					return errors.New(fmt.Sprintf("Value '%v' at key '%v' in record %v does not conform to schema type %v", val, key, idx, schemaCollection.Types[key]))
-				}
-			case "LIST":
-				if _, ok := val.([]interface{}); !ok {
-					return errors.New(fmt.Sprintf("Value '%v' at key '%v' in record %v does not conform to schema type %v", val, key, idx, schemaCollection.Types[key]))
-				}
+	if ok := schema.(map[string]interface{}); ok {
+		dict := schema.(map[string]interface{})
+		for child, val := range dict {
+			if err := ValidateSchema(fmt.Sprintf("%s.%s", key, child), dict[child]); err != nil {
+				return err
 			}
 		}
+		return nil
 	}
-	return nil
+	if ok := schema.([]interface{}); ok {
+		list := schema.([]interface{})
+		if len(list) != 1 {
+			return fmt.Errorf("invalid list specification: %v, list must contain exatly one element representing its type", list)
+		}
+		return validateDataAgainstSchema(fmt.Sprintf("%s[%d]", key, idx), list[0])
+	}
+	return fmy.Errorf("value at %s of type %T is invalid", key, schema)
+
 }

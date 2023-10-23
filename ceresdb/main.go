@@ -30,16 +30,16 @@ type Query struct {
 	QueryString string `json:"query"`
 }
 
-type Snapshot struct {
-	FreeSpace freespace.FreeSpaceStruct `json:"free_space"`
-	Schema    schema.SchemaStruct       `json:"schema"`
-	Data      map[string]interface{}    `json:"data"`
-	Indices   map[string]interface{}    `json:"indices"`
-}
+// type Snapshot struct {
+// 	FreeSpace freespace.FreeSpaceStruct `json:"free_space"`
+// 	Schema    schema.SchemaStruct       `json:"schema"`
+// 	Data      map[string]interface{}    `json:"data"`
+// 	Indices   map[string]interface{}    `json:"indices"`
+// }
 
 var router *gin.Engine
 
-const SNAPSHOT_DELAY = 5
+// const SNAPSHOT_DELAY = 5
 
 func main() {
 	gin.SetMode(gin.ReleaseMode)
@@ -47,8 +47,8 @@ func main() {
 	config.ReadConfigFile()
 	logging.Initialize(config.Config.LogLevel)
 	logging.INFO("Starting Ceres server")
-	freespace.LoadFreeSpace()
-	schema.LoadSchema()
+	// freespace.LoadFreeSpace()
+	// schema.LoadSchema()
 	queue.InitQueue()
 
 	logging.TRACE("Ensuring data directory exists")
