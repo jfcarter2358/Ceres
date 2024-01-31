@@ -1,8 +1,0 @@
-{
-    "log-level": "debug",
-    "home-dir": "../../test/.ceresdb",
-    "data-dir": "../../test/.ceresdb/data",
-    "index-dir": "../../test/.ceresdb/indices",
-    "storage-line-limit": 32,
-    "port": 7437
-}

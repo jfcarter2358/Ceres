@@ -1,8 +1,0 @@
-{
-    "log-level": "debug",
-    "home-dir": "../../test/.ceresdb-permit",
-    "data-dir": "../../test/.ceresdb-permit/data",
-    "index-dir": "../../test/.ceresdb-permit/indices",
-    "storage-line-limit": 32,
-    "port": 7437
-}

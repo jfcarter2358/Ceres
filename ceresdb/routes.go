@@ -2,10 +2,11 @@
 
 package main
 
+import "ceresdb/api"
+
 func initializeRoutes() {
 	apiRoutes := router.Group("/api")
 	{
-		apiRoutes.POST("/query", handleQueryEndpoint)
-		apiRoutes.GET("/snapshot", handleSnapshotEndpoint)
+		apiRoutes.POST("/query", api.Query)
 	}
 }

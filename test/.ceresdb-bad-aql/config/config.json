@@ -1,6 +1,0 @@
-{
-    "log-level": "debug",
-    "home-dir": "../../test/.ceresdb-bad-aql",
-    "data-dir": "../../test/.ceresdb-bad-aql/data",
-    "storage-line-limit": 32
-}

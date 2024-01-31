@@ -3,8 +3,10 @@
 package config
 
 import (
+	"ceresdb/logger"
 	"encoding/json"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -17,37 +19,47 @@ const DEFAULT_CONFIG_PATH = ".ceresdb/config/config.json"
 const ENV_PREFIX = "CERESDB_"
 
 type ConfigObject struct {
-	LogLevel         string `json:"log-level" binding:"required" env:"LOG_LEVEL"`
-	HomeDir          string `json:"home-dir" binding:"required" env:"HOME_DIR"`
-	DataDir          string `json:"data-dir" binding:"required" env:"DATA_DIR"`
-	IndexDir         string `json:"index-dir" binding:"required" env:"INDEX_DIR"`
-	StorageLineLimit int    `json:"storage-line-limit" binding:"required" env:"STORAGE_LINE_LIMIT"`
-	Port             int    `json:"port" binding:"required" env:"PORT"`
-	Leader           string `json:"leader" env:"LEADER"`
-	FollowerAuth     string `json:"follower_auth" env:"FOLLOWER_AUTH"`
+	LogLevel          string `json:"log_level" env:"LOG_LEVEL"`
+	LogFormat         string `json:"log_format" env:"LOG_FORMAT"`
+	DataDir           string `json:"data_dir" env:"DATA_DIR"`
+	StorageLineLimit  int    `json:"storage_line_limit" env:"STORAGE_LINE_LIMIT"`
+	Port              int    `json:"port" env:"PORT"`
+	AdminUsername     string `json:"admin_username" env:"ADMIN_USERNAME"`
+	AdminPassword     string `json:"admin_password" env:"ADMIN_PASSWORD"`
+	MaxIndexSize      int    `json:"max_index_size" env:"MAX_INDEX_SIZE"`
+	RetentionPeriod   int    `json:"retention_period" env:"RETENTION_PERIOD"`
+	RetentionInterval int    `json:"retention_interval" env:"RETENTION_INTERVAL"`
 }
 
 var Config ConfigObject
 
-func ReadConfigFile() *ConfigObject {
-
-	// Set default path if we are not passed one
-	path := os.Getenv(ENV_PREFIX + "CONFIG_PATH")
-	if path == "" {
-		path = DEFAULT_CONFIG_PATH
+func ReadConfig() {
+	configPath := os.Getenv(ENV_PREFIX + "CONFIG_PATH")
+	if configPath == "" {
+		configPath = DEFAULT_CONFIG_PATH
 	}
 
-	// Open our jsonFile
-	jsonFile, err := os.Open(path)
-
-	// If os.Open returns an error then handle it
-	if err != nil {
-		panic(err)
+	Config = ConfigObject{
+		LogLevel:          logger.LOG_LEVEL_INFO,
+		LogFormat:         logger.LOG_FORMAT_CONSOLE,
+		DataDir:           "/tmp/ceresdb",
+		StorageLineLimit:  1000,
+		Port:              7437,
+		AdminUsername:     "ceresdb",
+		AdminPassword:     "ceresdb",
+		MaxIndexSize:      1000,
+		RetentionPeriod:   -1,
+		RetentionInterval: 60,
 	}
 
-	// Read and unmarshal the JSON
-	byteValue, _ := ioutil.ReadAll(jsonFile)
-	json.Unmarshal(byteValue, &Config)
+	jsonFile, err := os.Open(configPath)
+	if err == nil {
+		log.Printf("Successfully Opened %v", configPath)
+
+		byteValue, _ := ioutil.ReadAll(jsonFile)
+
+		json.Unmarshal(byteValue, &Config)
+	}
 
 	v := reflect.ValueOf(Config)
 	t := reflect.TypeOf(Config)
@@ -62,6 +74,7 @@ func ReadConfigFile() *ConfigObject {
 		if value != "" {
 			val, present := os.LookupEnv(ENV_PREFIX + value)
 			if present {
+				// log.Printf("Found ENV var %s with value %s", ENV_PREFIX+value, val)
 				w := reflect.ValueOf(&Config).Elem().FieldByName(t.Field(i).Name)
 				x := getAttr(&Config, t.Field(i).Name).Kind().String()
 				if w.IsValid() {
@@ -103,35 +116,34 @@ func ReadConfigFile() *ConfigObject {
 						if err == nil {
 							w.SetBool(i)
 						}
+					default:
+						objValue := reflect.New(field.Type)
+						objInterface := objValue.Interface()
+						err := json.Unmarshal([]byte(val), objInterface)
+						obj := reflect.ValueOf(objInterface)
+						if err == nil {
+							w.Set(reflect.Indirect(obj).Convert(field.Type))
+						} else {
+							log.Println(err)
+						}
 					}
 				}
 			}
 		}
 	}
 
+	// defer the closing of our jsonFile so that we can parse it later on
 	defer jsonFile.Close()
 
 	usr, _ := user.Current()
 	dir := usr.HomeDir
 
 	// Expand home directory
-	if Config.HomeDir == "~" {
-		Config.HomeDir = dir
-	} else if strings.HasPrefix(Config.HomeDir, "~/") {
-		Config.HomeDir = filepath.Join(dir, Config.HomeDir[2:])
-	}
 	if Config.DataDir == "~" {
 		Config.DataDir = dir
 	} else if strings.HasPrefix(Config.DataDir, "~/") {
 		Config.DataDir = filepath.Join(dir, Config.DataDir[2:])
 	}
-	if Config.IndexDir == "~" {
-		Config.IndexDir = dir
-	} else if strings.HasPrefix(Config.IndexDir, "~/") {
-		Config.IndexDir = filepath.Join(dir, Config.IndexDir[2:])
-	}
-
-	return &Config
 }
 
 func getAttr(obj interface{}, fieldName string) reflect.Value {

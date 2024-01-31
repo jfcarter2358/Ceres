@@ -1,0 +1,38 @@
+{
+    "foo":{
+        "foo": {
+            "files": {
+                "1": {
+                    "length": 0,
+                    "available": [0,0,0,0,0,0,0,0,0,0]
+                }
+            },
+            "users": {
+                "uFoo": "write"
+            },
+            "groups": {
+                "gFoo": "read"
+            },
+            "roles": {
+                "rFoo": "update"
+            }
+        },
+        "bar": {
+            "files": {
+                "1": {
+                    "length": 0,
+                    "available": [0,0,0,0,0,0,0,0,0,0]
+                }
+            },
+            "users": {
+                "uBar": "write"
+            },
+            "groups": {
+                "gBar": "read"
+            },
+            "roles": {
+                "rBar": "update"
+            }
+        }
+    }
+}

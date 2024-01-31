@@ -1,0 +1,30 @@
+{
+    "foo": {
+        "collections": [
+            "cFoo"
+        ],
+        "users": {
+            "uFoo": "write"
+        },
+        "groups": {
+            "gFoo": "read"
+        },
+        "roles": {
+            "rFoo": "update"
+        }
+    },
+    "bar": {
+        "collections": [
+            "cBar"
+        ],
+        "users": {
+            "uBar": "write"
+        },
+        "groups": {
+            "gBar": "read"
+        },
+        "roles": {
+            "rBar": "update"
+        }
+    }
+}

@@ -1,71 +1,73 @@
 package config
 
 import (
+	"ceresdb/logger"
+	"fmt"
 	"os"
 	"testing"
 )
 
-func TestReadConfigFile(t *testing.T) {
-	// Expected values to check against
-	expectedLogLevel := "debug"
-	expectedCeresDir := "../../test/.ceresdb"
-	expectedDataDir := "../../test/.ceresdb/data"
-	expectedStorageLineLimit := 32
-
-	os.Setenv("CERESDB_CONFIG_PATH", "../../test/.ceresdb/config/config.json")
-	conf := ReadConfigFile()
-
-	if conf.LogLevel != expectedLogLevel {
-		t.Errorf("LogLevel was incorrect, got: %s, want: %s", conf.LogLevel, expectedLogLevel)
-	}
-	if conf.HomeDir != expectedCeresDir {
-		t.Errorf("CeresDir was incorrect, got: %s, want: %s", conf.HomeDir, expectedCeresDir)
-	}
-	if conf.DataDir != expectedDataDir {
-		t.Errorf("DataDir was incorrect, got: %s, want: %s", conf.DataDir, expectedDataDir)
-	}
-	if conf.StorageLineLimit != expectedStorageLineLimit {
-		t.Errorf("StorageLineLimit was incorrect, got: %d, want: %d", conf.StorageLineLimit, expectedStorageLineLimit)
-	}
+var Expected = []ConfigObject{
+	{
+		LogLevel:         logger.LOG_LEVEL_INFO,
+		DataDir:          "/tmp/ceresdb",
+		StorageLineLimit: 1000,
+		Port:             7437,
+		AdminUsername:    "ceresdb",
+		AdminPassword:    "ceresdb",
+	},
+	{
+		LogLevel:         logger.LOG_LEVEL_DEBUG,
+		DataDir:          "/tmp/ceresdb2",
+		StorageLineLimit: 2000,
+		Port:             7438,
+		AdminUsername:    "foo",
+		AdminPassword:    "bar",
+	},
 }
 
-func TestReadConfigFilePanic(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("The code did not panic with an invalid config path")
+func setConfigEnv(conf ConfigObject) {
+	os.Setenv("CERESDB_LOG_LEVEL", conf.LogLevel)
+	os.Setenv("CERESDB_DATA_DIR", conf.DataDir)
+	os.Setenv("CERESDB_STORAGE_LINE_LIMIT", fmt.Sprintf("%d", conf.StorageLineLimit))
+	os.Setenv("CERESDB_PORT", fmt.Sprintf("%d", conf.Port))
+	os.Setenv("CERESDB_ADMIN_USERNAME", conf.AdminUsername)
+	os.Setenv("CERESDB_ADMIN_PASSWORD", conf.AdminPassword)
+}
+
+func checkConfig(conf ConfigObject) error {
+	if conf.LogLevel != Config.LogLevel {
+		return fmt.Errorf("log level was incorrect, got: %s, want: %s", conf.LogLevel, Config.LogLevel)
+	}
+	if conf.DataDir != Config.DataDir {
+		return fmt.Errorf("data dir was incorrect, got: %s, want: %s", Config.DataDir, conf.DataDir)
+	}
+	if conf.StorageLineLimit != Config.StorageLineLimit {
+		return fmt.Errorf("storage line limit was incorrect, got: %d, want: %d", Config.StorageLineLimit, conf.StorageLineLimit)
+	}
+	if conf.Port != Config.Port {
+		return fmt.Errorf("port was incorrect, got: %d, want: %d", Config.Port, conf.Port)
+	}
+	if conf.AdminUsername != Config.AdminUsername {
+		return fmt.Errorf("admin username was incorrect, got: %s, want: %s", Config.AdminUsername, conf.AdminUsername)
+	}
+	if conf.AdminPassword != Config.AdminPassword {
+		return fmt.Errorf("admin password was incorrect, got: %s, want: %s", Config.AdminPassword, conf.AdminPassword)
+	}
+	return nil
+}
+
+func TestReadConfig(t *testing.T) {
+	ReadConfig()
+	if err := checkConfig(Expected[0]); err != nil {
+		t.Errorf(err.Error())
+	}
+
+	for _, conf := range Expected[1:] {
+		setConfigEnv(conf)
+		ReadConfig()
+		if err := checkConfig(conf); err != nil {
+			t.Error(err.Error())
 		}
-	}()
-
-	os.Setenv("CERESDB_CONFIG_PATH", "")
-	ReadConfigFile()
-}
-
-func TestReadConfigEnv(t *testing.T) {
-	// Expected values to check against
-	expectedLogLevel := "info"
-	expectedCeresDir := ".ceresdb"
-	expectedDataDir := ".ceresdb/data"
-	expectedStorageLineLimit := 64
-
-	os.Setenv("CERESDB_CONFIG_PATH", "../../test/.ceresdb/config/config.json")
-	os.Setenv("CERESDB_LOG_LEVEL", "info")
-	os.Setenv("CERESDB_HOME_DIR", ".ceresdb")
-	os.Setenv("CERESDB_DATA_DIR", ".ceresdb/data")
-	os.Setenv("CERESDB_INDEX_DIR", ".ceresdb/indices")
-	os.Setenv("CERESDB_STORAGE_LINE_LIMIT", "64")
-	os.Setenv("CERESDB_PORT", "1234")
-	conf := ReadConfigFile()
-
-	if conf.LogLevel != expectedLogLevel {
-		t.Errorf("LogLevel was incorrect, got: %s, want: %s", conf.LogLevel, expectedLogLevel)
-	}
-	if conf.HomeDir != expectedCeresDir {
-		t.Errorf("CeresDir was incorrect, got: %s, want: %s", conf.HomeDir, expectedCeresDir)
-	}
-	if conf.DataDir != expectedDataDir {
-		t.Errorf("DataDir was incorrect, got: %s, want: %s", conf.DataDir, expectedDataDir)
-	}
-	if conf.StorageLineLimit != expectedStorageLineLimit {
-		t.Errorf("StorageLineLimit was incorrect, got: %d, want: %d", conf.StorageLineLimit, expectedStorageLineLimit)
 	}
 }
