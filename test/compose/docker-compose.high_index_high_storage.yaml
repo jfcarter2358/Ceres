@@ -1,0 +1,13 @@
+version: "3.9"
+networks:
+  isolation-network:
+    driver: bridge
+services:
+  ceresdb-high-index-high-storage:
+    image: "ceresdb"
+    ports:
+      - "0.0.0.0:7440:7437"
+    tty: true
+    environment:
+      CERESDB_MAX_INDEX_SIZE: "100000"
+      CERESDB_STORAGE_LINE_LIMIT: "100000"

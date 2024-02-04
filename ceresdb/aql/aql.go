@@ -56,20 +56,21 @@ import (
 */
 
 type Token struct {
-	Verb           string `json:"verb"`
-	Noun           string `json:"noun"`
-	NounType       string `json:"noun_type"`
-	Object         string `json:"object"`
-	Location       string `json:"location"`
-	LocationType   string `json:"location_type"`
-	Input          string `json:"input"`
-	Additional     string `json:"additional"`
-	AdditionalType string `json:"additional_type"`
-	Filter         string `json:"filter"`
-	Order          string `json:"order"`
-	OrderField     string `json:"order_field"`
-	Limit          int    `json:"limit"`
-	Count          bool   `json:"count"`
+	Verb           string   `json:"verb"`
+	Noun           string   `json:"noun"`
+	NounType       string   `json:"noun_type"`
+	Object         string   `json:"object"`
+	Location       string   `json:"location"`
+	LocationType   string   `json:"location_type"`
+	Input          string   `json:"input"`
+	Additional     string   `json:"additional"`
+	AdditionalType string   `json:"additional_type"`
+	Filter         string   `json:"filter"`
+	Order          string   `json:"order"`
+	OrderField     string   `json:"order_field"`
+	Limit          int      `json:"limit"`
+	Count          bool     `json:"count"`
+	Output         []string `json:"output"`
 }
 
 func ProcessQuery(q string, u auth.User) (interface{}, error) {
@@ -87,6 +88,7 @@ func ProcessQuery(q string, u auth.User) (interface{}, error) {
 		"limit":      0,
 		"migrate":    0,
 		"noun":       0,
+		"output":     0,
 	}
 
 	tok := Token{}
@@ -115,8 +117,8 @@ func ProcessQuery(q string, u auth.User) (interface{}, error) {
 			flags["order"] = -(flags["order"] - 1)
 		case constants.VERB_COUNT:
 			tok.Count = true
-		case constants.VERB_MIGRATE, constants.VERB_OUTPUT:
-			continue
+		case constants.VERB_OUTPUT:
+			flags["output"] = -(flags["output"] - 1)
 		case constants.VERB_LIMIT:
 			flags["limit"] = -(flags["limit"] - 1)
 		case constants.ADJECTIVE_ASCENDING, constants.ADJECTIVE_DESCENDING:
@@ -136,6 +138,15 @@ func ProcessQuery(q string, u auth.User) (interface{}, error) {
 			tok.NounType = strings.ToUpper(t)
 			flags["noun"] = -(flags["noun"] - 1)
 		default:
+			if flags["output"] == 1 && checkFlags(flags) {
+				var output []string
+				if err := json.Unmarshal([]byte(t), &output); err != nil {
+					return nil, err
+				}
+				tok.Output = output
+				flags["output"] = 0
+				continue
+			}
 			if flags["noun"] == 1 && checkFlags(flags) {
 				tok.Noun = t
 				flags["noun"] = 0

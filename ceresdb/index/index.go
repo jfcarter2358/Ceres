@@ -243,7 +243,7 @@ func addAgainstIndex(id string, idx, s, obj interface{}) interface{} {
 		idxInterface := idx.(map[string]interface{})
 		sInterface := s.(map[string]interface{})
 		for key, child := range dict {
-			if key == constants.ID_KEY || key == constants.TIME_KEY {
+			if key == constants.ID_KEY || key == constants.TIME_KEY || key == constants.PREFIX_KEY || key == constants.LINE_KEY {
 				continue
 			}
 			i := addAgainstIndex(id, idxInterface[key], sInterface[key], child)

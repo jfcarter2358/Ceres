@@ -2,6 +2,8 @@ package constants
 
 const ID_KEY = "_id"
 const TIME_KEY = "_time"
+const PREFIX_KEY = "_prefix"
+const LINE_KEY = "_line"
 
 const FILTER_AND = "$and"
 const FILTER_OR = "$or"

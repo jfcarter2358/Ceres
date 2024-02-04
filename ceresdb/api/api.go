@@ -24,6 +24,7 @@ type Input struct {
 
 func Query(ctx *gin.Context) {
 	var in Input
+	logger.Tracef("", "Binding JSON")
 	if err := ctx.BindJSON(&in); err != nil {
 		utils.Error(err, ctx, http.StatusInternalServerError)
 		return

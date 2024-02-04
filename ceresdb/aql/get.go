@@ -102,6 +102,18 @@ func processGetRecord(token Token, u auth.User) (interface{}, error) {
 	if token.Limit > 0 && token.Limit < len(out) {
 		out = out[:token.Limit]
 	}
+
+	if len(token.Output) > 0 {
+		for idx, datum := range out {
+			temp := map[string]interface{}{}
+			for key, val := range datum.(map[string]interface{}) {
+				if utils.Contains(token.Output, key) {
+					temp[key] = val
+				}
+			}
+			out[idx] = temp
+		}
+	}
 	return out, err
 }
 

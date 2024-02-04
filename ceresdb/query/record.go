@@ -11,6 +11,8 @@ import (
 	"ceresdb/utils"
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -78,16 +80,7 @@ func GetRecordIndex(d, c string, filter map[string]interface{}, u auth.User) ([]
 		return nil, err
 	}
 
-	logger.Tracef("", "got ids %v", ids)
-	out := []interface{}{}
-	for _, id := range ids {
-		r, err := record.Get(d, c, id)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, r)
-	}
-	return out, nil
+	return groupGet(d, c, ids)
 }
 
 func GetRecordColdStorage(d, c string, filter map[string]interface{}, u auth.User) ([]interface{}, error) {
@@ -135,9 +128,11 @@ func GetRecordAllIndex(d, c string, u auth.User) ([]interface{}, error) {
 	if err := collection.VerifyAuth(d, c, constants.PERMISSION_READ, u); err != nil {
 		return nil, err
 	}
-	logger.Tracef("", "Get all index")
-	out, err := record.GetAllIndex(d, c)
-	return out, err
+
+	ids := append([]string{}, index.IndexIDs[d][c]...)
+
+	return groupGet(d, c, ids)
+
 }
 
 func GetRecordAllColdStorage(d, c string, u auth.User) ([]interface{}, error) {
@@ -578,4 +573,68 @@ func opCompareString(op, a, b string, o, i []string) []string {
 		}
 	}
 	return []string{}
+}
+
+func groupIDs(ids []string) ([][]int, []string, error) {
+	sort.Strings(ids)
+
+	prefix := ""
+	groups := [][]int{}
+	group := []int{}
+	pages := []string{}
+	for _, id := range ids {
+		parts := strings.Split(id, ".")
+		page := parts[0]
+		line, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return nil, nil, err
+		}
+		if prefix == "" {
+			prefix = page
+			pages = append(pages, page)
+			group = []int{line}
+			continue
+		}
+		if !strings.HasPrefix(id, prefix) {
+			groups = append(groups, group)
+			group = []int{line}
+			prefix = page
+			pages = append(pages, page)
+			continue
+		}
+		group = append(group, line)
+	}
+	if len(group) > 0 {
+		groups = append(groups, group)
+	}
+
+	logger.Tracef("", "got groups %v", groups)
+
+	return groups, pages, nil
+}
+
+func groupGet(d, c string, ids []string) ([]interface{}, error) {
+	groups, pages, err := groupIDs(ids)
+	if err != nil {
+		return nil, err
+	}
+
+	out := []interface{}{}
+	chans := []chan []interface{}{}
+	for idx, page := range pages {
+		chans = append(chans, make(chan []interface{}, 1))
+		go func(page string, idx int) {
+			rs, err := record.GetGroup(d, c, page, groups[idx])
+			if err != nil {
+				logger.Errorf("", "error on record get group: %s", err.Error())
+				chans[idx] <- []interface{}{}
+			}
+			chans[idx] <- rs
+		}(page, idx)
+	}
+	for idx := range pages {
+		records := <-chans[idx]
+		out = append(out, records...)
+	}
+	return out, nil
 }

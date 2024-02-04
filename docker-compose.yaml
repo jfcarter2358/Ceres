@@ -10,7 +10,9 @@ services:
     tty: true
     environment:
       # CERESDB_WHITETAIL_LOGGING_ENABLED: "true"
-      CERESDB_SLEEP: "5"
+      CERESDB_LOG_LEVEL: "INFO"
+      CERESDB_MAX_INDEX_SIZE: "100000"
+      CERESDB_STORAGE_LINE_LIMIT: "1000"
     # depends_on:
     #   - whitetail
   # whitetail:

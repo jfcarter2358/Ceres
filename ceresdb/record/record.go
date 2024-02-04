@@ -28,6 +28,11 @@ func Get(d, c, id string) (interface{}, error) {
 	return out, err
 }
 
+func GetGroup(d, c, page string, group []int) ([]interface{}, error) {
+	out, err := doReadGroup(d, c, page, group)
+	return out, err
+}
+
 func GetAllIndex(d, c string) ([]interface{}, error) {
 	output := []interface{}{}
 	logger.Debugf("", "Searching through index IDs")
@@ -86,22 +91,22 @@ func Write(d, c string, data interface{}) error {
 func doDelete(d, c, id string) error {
 	parts := strings.Split(id, ".")
 	if len(parts) != 2 {
-		return fmt.Errorf("Invalid ID, must be of format <uuid>.<int>")
+		return fmt.Errorf("invalid ID, must be of format <uuid>.<int>")
 	}
 	path := fmt.Sprintf("%s/%s/%s/%s", config.Config.DataDir, d, c, parts[0])
 	idx, err := strconv.Atoi(parts[1])
 	if err != nil {
-		return fmt.Errorf("Invalid ID, must be of format <uuid>.<int>")
+		return fmt.Errorf("invalid ID, must be of format <uuid>.<int>")
 	}
 	lines, err := ReadDataFile(path)
 	if err != nil {
 		return err
 	}
 	if idx > len(lines) {
-		return fmt.Errorf("Record with ID %s does not exist", id)
+		return fmt.Errorf("record with ID %s does not exist", id)
 	}
 	if lines[idx] == "" {
-		return fmt.Errorf("Record with ID %s does not exist", id)
+		return fmt.Errorf("record with ID %s does not exist", id)
 	}
 	temp := lines[idx]
 	lines[idx] = ""
@@ -137,22 +142,22 @@ func doDelete(d, c, id string) error {
 func doRead(d, c, id string) (interface{}, error) {
 	parts := strings.Split(id, ".")
 	if len(parts) != 2 {
-		return nil, fmt.Errorf("Invalid ID, must be of format <uuid>.<int>")
+		return nil, fmt.Errorf("invalid ID, must be of format <uuid>.<int>")
 	}
 	path := fmt.Sprintf("%s/%s/%s/%s", config.Config.DataDir, d, c, parts[0])
 	idx, err := strconv.Atoi(parts[1])
 	if err != nil {
-		return nil, fmt.Errorf("Invalid ID, must be of format <uuid>.<int>")
+		return nil, fmt.Errorf("invalid ID, must be of format <uuid>.<int>")
 	}
 	lines, err := ReadDataFile(path)
 	if err != nil {
 		return nil, err
 	}
 	if idx > len(lines) {
-		return nil, fmt.Errorf("Record with ID %s does not exist", id)
+		return nil, fmt.Errorf("record with ID %s does not exist", id)
 	}
 	if lines[idx] == "" {
-		return nil, fmt.Errorf("Record with ID %s does not exist", id)
+		return nil, fmt.Errorf("record with ID %s does not exist", id)
 	}
 
 	var val interface{}
@@ -162,25 +167,53 @@ func doRead(d, c, id string) (interface{}, error) {
 	return val, nil
 }
 
+func doReadGroup(d, c, page string, group []int) ([]interface{}, error) {
+	path := fmt.Sprintf("%s/%s/%s/%s", config.Config.DataDir, d, c, page)
+
+	lines, err := ReadDataFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	groupJSON := "["
+	for jdx := range group {
+		if jdx > len(lines) {
+			return nil, fmt.Errorf("record with line %s.%d does not exist", page, jdx)
+		}
+		if lines[jdx] == "" {
+			return nil, fmt.Errorf("record with line %s.%d does not exist", page, jdx)
+		}
+		groupJSON += fmt.Sprintf("%s,", lines[jdx])
+	}
+	groupJSON = fmt.Sprintf("%s]", groupJSON[:len(groupJSON)-1])
+
+	var val []interface{}
+	if err := json.Unmarshal([]byte(groupJSON), &val); err != nil {
+		logger.Tracef("", "JSON error %s with data %s", err.Error(), groupJSON)
+		return nil, err
+	}
+	return val, nil
+}
+
 func doUpdate(d, c, id string, val interface{}) error {
 	parts := strings.Split(id, ".")
 	if len(parts) != 2 {
-		return fmt.Errorf("Invalid ID, must be of format <uuid>.<int>")
+		return fmt.Errorf("invalid ID, must be of format <uuid>.<int>")
 	}
 	path := fmt.Sprintf("%s/%s/%s/%s", config.Config.DataDir, d, c, parts[0])
 	idx, err := strconv.Atoi(parts[1])
 	if err != nil {
-		return fmt.Errorf("Invalid ID, must be of format <uuid>.<int>")
+		return fmt.Errorf("invalid ID, must be of format <uuid>.<int>")
 	}
 	lines, err := ReadDataFile(path)
 	if err != nil {
 		return err
 	}
 	if idx > len(lines) {
-		return fmt.Errorf("Record with ID %s does not exist", id)
+		return fmt.Errorf("record with ID %s does not exist", id)
 	}
 	if lines[idx] == "" {
-		return fmt.Errorf("Record with ID %s does not exist", id)
+		return fmt.Errorf("record with ID %s does not exist", id)
 	}
 
 	new := val.(map[string]interface{})

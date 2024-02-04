@@ -20,7 +20,18 @@ build-release: build-local  ## Build release artifact tar
 
 clean:  ## Remove build and test artifacts
 	rm -rf dist || true
+	docker-compose down
 	docker-compose rm -f
+	docker-compose -f test/compose/docker-compose.old.yaml -p old down
+	docker-compose -f test/compose/docker-compose.low_index_low_storage.yaml -p low_index_low_storage down
+	docker-compose -f test/compose/docker-compose.low_index_high_storage.yaml -p low_index_high_storage down
+	docker-compose -f test/compose/docker-compose.high_index_low_storage.yaml -p high_index_low_storage down
+	docker-compose -f test/compose/docker-compose.high_index_high_storage.yaml -p high_index_high_storage down
+	docker-compose -f test/compose/docker-compose.old.yaml -p old rm -f
+	docker-compose -f test/compose/docker-compose.low_index_low_storage.yaml -p low_index_low_storage rm -f
+	docker-compose -f test/compose/docker-compose.low_index_high_storage.yaml -p low_index_high_storage rm -f
+	docker-compose -f test/compose/docker-compose.high_index_low_storage.yaml -p high_index_low_storage rm -f
+	docker-compose -f test/compose/docker-compose.high_index_high_storage.yaml -p high_index_high_storage rm -f
 
 docs:
 	cd docs && make html
@@ -65,3 +76,34 @@ test-unit: clean  ## Run unit tests against CeresDB
 	cd ceresdb && go test -p 1 -cover -coverprofile=../coverage.out ./...
 	cd ceresdb && go tool cover -html=../coverage.out -o ../coverage.html 
 
+test-performance:  ## Run performance tests against CeresDB
+	@if [ "$(IMAGE_BUILT)" = "false" ] ; then \
+        make build-docker ; \
+    fi
+	docker-compose -f test/compose/docker-compose.old.yaml -p old down
+	docker-compose -f test/compose/docker-compose.low_index_low_storage.yaml -p low_index_low_storage down
+	docker-compose -f test/compose/docker-compose.low_index_high_storage.yaml -p low_index_high_storage down
+	docker-compose -f test/compose/docker-compose.high_index_low_storage.yaml -p high_index_low_storage down
+	docker-compose -f test/compose/docker-compose.high_index_high_storage.yaml -p high_index_high_storage down
+	docker-compose -f test/compose/docker-compose.old.yaml -p old rm -f
+	docker-compose -f test/compose/docker-compose.low_index_low_storage.yaml -p low_index_low_storage rm -f
+	docker-compose -f test/compose/docker-compose.low_index_high_storage.yaml -p low_index_high_storage rm -f
+	docker-compose -f test/compose/docker-compose.high_index_low_storage.yaml -p high_index_low_storage rm -f
+	docker-compose -f test/compose/docker-compose.high_index_high_storage.yaml -p high_index_high_storage rm -f
+	docker-compose -f test/compose/docker-compose.old.yaml -p old up -d --remove-orphans
+	docker-compose -f test/compose/docker-compose.low_index_low_storage.yaml -p low_index_low_storage up -d --remove-orphans
+	docker-compose -f test/compose/docker-compose.low_index_high_storage.yaml -p low_index_high_storage up -d --remove-orphans
+	docker-compose -f test/compose/docker-compose.high_index_low_storage.yaml -p high_index_low_storage up -d --remove-orphans
+	docker-compose -f test/compose/docker-compose.high_index_high_storage.yaml -p high_index_high_storage up -d --remove-orphans
+	sleep 10
+	cd test/performance && pytest -n 5
+	docker-compose -f test/compose/docker-compose.old.yaml -p old down
+	docker-compose -f test/compose/docker-compose.low_index_low_storage.yaml -p low_index_low_storage down
+	docker-compose -f test/compose/docker-compose.low_index_high_storage.yaml -p low_index_high_storage down
+	docker-compose -f test/compose/docker-compose.high_index_low_storage.yaml -p high_index_low_storage down
+	docker-compose -f test/compose/docker-compose.high_index_high_storage.yaml -p high_index_high_storage down
+	docker-compose -f test/compose/docker-compose.old.yaml -p old rm -f
+	docker-compose -f test/compose/docker-compose.low_index_low_storage.yaml -p low_index_low_storage rm -f
+	docker-compose -f test/compose/docker-compose.low_index_high_storage.yaml -p low_index_high_storage rm -f
+	docker-compose -f test/compose/docker-compose.high_index_low_storage.yaml -p high_index_low_storage rm -f
+	docker-compose -f test/compose/docker-compose.high_index_high_storage.yaml -p high_index_high_storage rm -f
